@@ -1,4 +1,4 @@
-## Quanta
+# Quanta
 
 Installation instructions:
 
@@ -9,7 +9,7 @@ Installation instructions:
   - Compile grammar from grammar.js (add all generated files to .gitignore) "tree-sitter generate"
   - Check grammar via "tree-sitter parse text.txt"
 
-3 Rust & WASM
+3. Rust & WASM
  - Install WebAssembly for Rust tools: https://rustwasm.github.io/docs/book/game-of-life/setup.html
 - In root dir, compile Rust module to WASM: "wasm-pack build --release --target web"
 
