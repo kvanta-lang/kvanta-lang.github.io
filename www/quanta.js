@@ -1,4 +1,4 @@
-import {is_good_text, greet} from '../pkg/game_of_life.js'
+import {is_good_text, greet} from '../pkg/Quanta.js'
 
 export function check_good_text() {
     let text = document.getElementById("code").value;

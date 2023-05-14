@@ -2,3 +2,6 @@
 /pkg
 /.git
 /Cargo.lock
+/grammar
+!/grammar/grammar.js
+!/grammar/test.txt
