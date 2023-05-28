@@ -22,7 +22,8 @@
     "@lezer/highlight": "^1.0.0",
     "@lezer/lr": "^1.0.0",
     "@rollup/plugin-node-resolve": "^15.0.2",
-    "codemirror": "^6.0.1"
+    "codemirror": "^6.0.1",
+    "jquery": "^3.7.0"
   },
   "devDependencies": {
     "@lezer/generator": "^1.0.0",
