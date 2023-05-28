@@ -5,3 +5,7 @@
 /grammar
 !/grammar/grammar.js
 !/grammar/test.txt
+/quanta-code-editor/package-lock.json
+/quanta-code-editor/node_modules
+/quanta-code-editor/quanta/node_modules
+/quanta-code-editor/quanta/package-lock.json
