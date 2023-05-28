@@ -2,19 +2,18 @@ import {EditorView, basicSetup} from "codemirror"
 import {quanta} from "./dist/index.js"
 import {keymap} from "@codemirror/view"
 import {acceptCompletion} from "@codemirror/autocomplete"
+import {check_good_text} from "../www/quanta.js"
 
 let sync_val = "";
 
-function is_good_text(text) {
-  return text === "function(a, b)"
-}
+
 
 function run_code() {
   console.log("Running code...")
   let text = editor.state.doc.toString().trim();
   console.log("text: " + text);
   let canvas = document.getElementById("drawing");
-  if (is_good_text(text) != 0) {
+  if (check_good_text(text)) {
       canvas.style.backgroundColor = "#00FF00"
       canvas.innerText = "It is a valid program!";
   } else {
@@ -32,8 +31,6 @@ let editor = new EditorView({
     EditorView.updateListener.of(
       function(e) {
         sync_val = e.state.doc.toString();
-        console.log("sync_val: " + sync_val);
-        // run_code();
       }
     ),
   ],
