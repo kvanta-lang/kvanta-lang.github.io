@@ -53,7 +53,6 @@ async function init_code_editor(field_checker) {
         ctx.fillRect( i, j, 1, 1);
       }
     }
-    download('code.txt', editor.state.doc.toString());
   }
 
   function saveCode() {
@@ -61,6 +60,41 @@ async function init_code_editor(field_checker) {
     download('code.txt', editor.state.doc.toString());
   }
 
+  document.getElementById("fileWithCode").onchange = function(evt) {
+    console.log("Loading code...");
+    if(!window.FileReader) return; // Browser is not compatible
+    console.log("Loading code...");
+    var reader = new FileReader();
+
+    reader.onload = function(evt) {
+        if(evt.target.readyState != 2) return;
+        if(evt.target.error) {
+            alert('Error while reading file');
+            return;
+        }
+
+        const filecontent = evt.target.result;
+        editor.dom.parentNode.removeChild(editor.dom);
+
+        editor = new EditorView({
+          extensions: [
+            basicSetup,
+            quanta(),
+            keymap.of([{key: "Tab", run: acceptCompletion}]),
+            EditorView.updateListener.of(
+              function(e) {
+                sync_val = e.state.doc.toString();
+                localStorage.setItem("code", sync_val);
+              }
+            ),
+          ],
+          doc: filecontent,
+          parent: document.getElementById("code"),
+        });
+    };
+
+    reader.readAsText(evt.target.files[0]);
+};
   
 
   document.getElementById("runButton").addEventListener("click", run_code);

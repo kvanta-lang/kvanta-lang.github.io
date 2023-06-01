@@ -8,6 +8,10 @@ build:
 	node_modules/.bin/rollup editor.mjs -f esm -o editor.bundle.js -n "editor" \
   -p @rollup/plugin-node-resolve
 
+build-code-editor:
+	node_modules/.bin/rollup editor.mjs -f esm -o editor.bundle.js -n "editor" \
+  -p @rollup/plugin-node-resolve
+
 up:	
 	python3 -m http.server 
 
