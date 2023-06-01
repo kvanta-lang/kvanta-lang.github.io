@@ -6,15 +6,15 @@ newline       = _{ "\n" | "\r" }
 WHITESPACE    = _{ " " | "\t" | "\n" }
 
 statement      =  { (command | init_statement | if_statement | for_statement | while_statement) }
-command        =  { identifier ~ "(" ~ params? ~ ");" }
+command        =  { ident ~ "(" ~ params? ~ ");" }
 params         = _{ expression ~ ("," ~ expression)* }
-init_statement =  { type ~ initialization ~ ("," ~ initialization)* ~ ";" }
-initialization =  { identifier ~ "=" ~ expression }
+init_statement =  { type? ~ initialization ~ ("," ~ initialization)* ~ ";" }
+initialization =  { ident ~ "=" ~ expression }
 
 if_statement    =  { "if" ~ "(" ~ expression ~ ")" ~ bracket_block }
-for_statement   =  { "for" ~ identifier ~ "in" ~ range ~ bracket_block }
+for_statement   =  { "for" ~ ident ~ "in" ~ range ~ bracket_block }
 range           =  { "(" ~ numVar ~ ".." ~ numVar ~ ")" }
-numVar          = _{ int | identifier }
+numVar          = _{ integer | ident }
 while_statement =  { "while" ~ "(" ~ expression ~ ")" ~ bracket_block }
 
 type           =  { array_type2d | array_type1d | primitive_type }
@@ -22,11 +22,7 @@ primitive_type = _{ "bool" | "int" | "color" | "float" }
 array_type2d   = _{ (array_type1d | primitive_type) ~ "[" ~ numVar ~ "]" }
 array_type1d   = _{ primitive_type ~ "[" ~ numVar ~ "]" }
 
-number = { float | int }
-int    = { "0" | "-"? ~ '1'..'9' ~ ('0'..'9')* }
-float  = { ("-"?) ~ ("0" | '1'..'9' ~ ('0'..'9')*) ~ "." ~ ('0'..'9')* }
-
-identifier = { ('a'..'z') ~ ('a'..'z' | 'A' .. 'Z')* }
+number     = { decimal | integer }
 expression = {
     monadicExpr
   | dyadicExpr

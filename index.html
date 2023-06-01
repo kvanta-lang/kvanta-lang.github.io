@@ -5,12 +5,12 @@
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">       
         <script type="module" src="/www/quanta.js"></script>
         <script type="module">
-                import { init_code_editor } from "./quanta_code_editor/editor.bundle.js";
-                import init from './pkg/game_of_life.js'
-                await init(); 
-                import {check_good_text} from "./www/quanta.js"
+            import { init_code_editor } from "./quanta_code_editor/editor.bundle.js";
+            import init from './quanta-lang/pkg/quanta_lang.js'
+            await init(); 
+            import {check_good_text} from "./www/quanta.js"
 
-                await init_code_editor(check_good_text);
+            await init_code_editor(check_good_text);
         </script>
         <style>
             #drawing {
