@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">       
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+        <script type="text/javascript">
+            localStorage.setItem("code", {{ program_code|safe }})
+        </script>
+        {% load static %}
+
+        <script type="module" src="{% static 'www/quanta.js' %}"></script>
+        <script type="module" src="{% static 'pkg/game_of_life.js' %}"></script>
+        <script type="module" src="{% static 'quanta_code_editor/editor.bundle.js' %}"></script>
+
+        <script type="module">
+                import { init_code_editor } from "./static/quanta_code_editor/editor.bundle.js";
+                import init from './static/pkg/game_of_life.js'
+                await init(); 
+                import {check_good_text} from "./static/www/quanta.js"
+
+                await init_code_editor(check_good_text);
+        </script>
+
+        <style>
+            #drawing {
+                border: 1px solid #ddd;
+            }
+            #center {
+                margin: 0 auto;
+                width: 85%;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="center">
+            <h2 class="mt-4">Quanta</h2>
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h3 class="mt-1">Code editor</h3>
+                    <div id="code"></div>
+                    <div class="col-md-6">
+                        <button class="btn btn-primary mt-3" id="runButton">Run</button>
+                        <button class="btn btn-primary mt-3" id="saveButton">Save code</button>
+                        <button class="btn btn-secondary mt-3" id="syncButton">Sync</button>
+                    </div>
+                    <br>
+                    <br>
+                    
+                </div>
+
+                <div class="col-md-6">
+                    <h3 class="mt-1">Drawing area</h3>
+                    <canvas id="drawing" width="600" height="420"></canvas>
+                    <button class="btn btn-primary mt-3" id="saveImageButton">Save image</button>
+                </div>
+            </div>
+            <h3 for="customFile">Upload code</h3>
+            <input type="file" class="form-control" id="fileWithCode" />
+            <br><br>
+
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+        <script>
+            document.getElementById("syncButton").addEventListener("click", () => {
+               $.ajax({
+                 type: "POST",
+                 url: "{% url 'code_editor:program_code' program_code_id %}",
+                 data: {
+                    code: localStorage.getItem("code"),
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                }
+             })
+            alert("Successfully synced");});
+        </script>
+        
+
+    </body>
+
+</html>

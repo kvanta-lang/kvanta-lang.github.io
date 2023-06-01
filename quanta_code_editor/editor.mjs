@@ -24,7 +24,7 @@ async function init_code_editor(field_checker) {
           }
         ),
         EditorView.theme({
-          "&": {height: "420px"},
+          "&": {height: "420px", border: "1px solid #ddd"},
           ".cm-scroller": {overflow: "auto"}
         }),
       ],
@@ -54,8 +54,6 @@ async function init_code_editor(field_checker) {
     let canvas = document.getElementById("drawing");
     const ctx = canvas.getContext("2d");
     let canvas_state = field_checker(text).field;
-    let cell_width = canvas.width / canvas_state.length;
-    let cell_height = canvas.height / canvas_state.length;
     for (var i = 0; i < canvas_state.length; i++) {
       for (var j = 0; j < canvas_state[i].length; j++) {
         let r  = canvas_state[i][j] >> 16 & 255;
@@ -66,7 +64,7 @@ async function init_code_editor(field_checker) {
         } else {
         ctx.fillStyle = "rgba("+r+","+g+","+b+",1)";
         }
-        ctx.fillRect( i, j, cell_width, cell_height);
+        ctx.fillRect( i, j, 1, 1);
       }
     }
   }
