@@ -5,7 +5,7 @@ install:
 build:
 	(cd quanta; npm run build)
 	npm run prepare
-	node_modules/.bin/rollup editor.mjs -f iife -o editor.bundle.js \
+	node_modules/.bin/rollup editor.mjs -f esm -o editor.bundle.js -n "editor" \
   -p @rollup/plugin-node-resolve
 
 up:	

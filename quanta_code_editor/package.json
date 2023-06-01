@@ -21,9 +21,12 @@
     "@codemirror/language": "^6.0.0",
     "@lezer/highlight": "^1.0.0",
     "@lezer/lr": "^1.0.0",
+    "@rollup/plugin-commonjs": "^25.0.0",
     "@rollup/plugin-node-resolve": "^15.0.2",
     "codemirror": "^6.0.1",
-    "jquery": "^3.7.0"
+    "jquery": "^3.7.0",
+    "lezer": "^0.13.5",
+    "lezer-tree": "^0.13.2"
   },
   "devDependencies": {
     "@lezer/generator": "^1.0.0",
