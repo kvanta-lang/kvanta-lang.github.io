@@ -1,12 +1,12 @@
 pub mod builder;
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum BaseType {
     Int,
     Bool,
     Color,
     Float
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BaseValue {
     Id(String),
     Int(i32),
@@ -14,40 +14,59 @@ pub enum BaseValue {
     Color(u8, u8, u8),
     Float(f32)
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Type {
     Primitive(BaseType),
     ArrayOneD(BaseType),
     ArrayTwoD(BaseType)
 }
-#[derive(Debug)]
-pub enum LogicalExpression {
-    Value(BaseValue),
-    EQ(Box<Expression>, Box<Expression>),
-    NQ(Box<Expression>, Box<Expression>),
-    GT(Box<Expression>, Box<Expression>),
-    LT(Box<Expression>, Box<Expression>),
-    GQ(Box<Expression>, Box<Expression>),
-    LQ(Box<Expression>, Box<Expression>),
-    AND(Box<Expression>, Box<Expression>),
-    OR(Box<Expression>, Box<Expression>)
+
+#[derive(Debug, Clone, Copy)]
+pub enum UnaryOperator {
+    UnaryMinus,
+    Parentheses
 }
-#[derive(Debug)]
-pub enum ArithmeticExpression {
-    Value(BaseValue),
-    UnaryMinus(Box<Expression>),
-    Plus(Box<Expression>, Box<Expression>),
-    Minus(Box<Expression>, Box<Expression>),
-    Mult(Box<Expression>, Box<Expression>),
-    Div(Box<Expression>, Box<Expression>), 
-    Mod(Box<Expression>, Box<Expression>)
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Operator {
+    EQ,
+    NQ,
+    GT,
+    LT,
+    GQ,
+    LQ,
+
+    AND,
+    OR,
+
+    Plus,
+    Minus,
+    Mult,
+    Div, 
+    Mod
 }
-#[derive(Debug)]
+
+fn prec(op : Operator) -> i32 {
+    if op == Operator::AND || op == Operator::OR {
+        return 10;
+    } else if op == Operator::Mult || op == Operator::Div || op == Operator::Mod {
+        return 6;
+    } else if op == Operator::Plus || op == Operator::Minus {
+        return 4;
+    } else {
+        return 8;
+    }
+}
+ 
+pub fn goes_before(op1 : Operator,  op2: Operator) -> bool {
+    return prec(op1) >= prec(op2)
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression {
     Value(BaseValue),
-    Logical(LogicalExpression),
-    Arithmetic(ArithmeticExpression),
-    Parenthes(Box<Expression>)
+    Unary(UnaryOperator, Box<Expression>),
+    Binary(Operator, Box<Expression>, Box<Expression>)
 }
 #[derive(Debug)]
 pub enum AstNode {

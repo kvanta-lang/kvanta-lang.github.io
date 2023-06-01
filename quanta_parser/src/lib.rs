@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ast::builder::build_ast_from_doc;
-use ast::{AstBlock, AstNode, BaseValue, Expression, Type, BaseType, ArithmeticExpression};
+use ast::{AstBlock, AstNode, BaseValue, Expression, Type, BaseType, goes_before};
 use error::Error;
 use pest::Parser;
 use pest::iterators::{Pairs, Pair};

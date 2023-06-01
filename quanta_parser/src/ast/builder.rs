@@ -2,7 +2,7 @@ use pest::iterators::{Pairs, Pair};
 use crate::Rule;
 use crate::error::{Error};
 
-use super::{AstBlock, AstNode, Expression, ArithmeticExpression, BaseType, BaseValue, LogicalExpression, };
+use super::{AstBlock, AstNode, Expression, Operator,  BaseType, BaseValue, goes_before, UnaryOperator };
 
 pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstBlock, Error> {
     assert!(docs.len() == 1);
@@ -68,43 +68,80 @@ fn build_ast_from_arglist(mut args: Pairs<Rule>) -> Result<Vec<Expression>, Erro
     Ok(expressions)
 }
 
+fn improve_expr(expr : Expression) -> (Expression, bool) {
+    match expr {
+        Expression::Value(_) => (expr, false),
+        Expression::Unary(_, _) => (expr, false),
+        Expression::Binary(op, left, right) => {
+            let mut new_left : Expression = *left;
+            if let Expression::Unary(UnaryOperator::Parentheses, _) = new_left {
+                (new_left, _) = improve_expr(new_left);
+            }
+            if let Expression::Binary(r_op, r_left, r_right) = *right.clone() {
+                if goes_before(op, r_op) {
+                    return improve_expr(Expression::Binary(r_op, Expression::Binary(op, new_left.into(), r_left).into(), r_right))
+                } else {
+                    let (new_right, redo) = improve_expr(*right);
+                    if redo {
+                        return improve_expr(Expression::Binary(op, new_left.into(), new_right.into()));
+                    }
+                    return (Expression::Binary(op, new_left.into(), new_right.into()), false)
+                }
+            }
+            (Expression::Binary(op, new_left.into(), right), false)
+        },
+    }
+}
+
 fn build_ast_from_expression(expression: Pair<Rule>) -> Result<Expression, Error> {
+    let expr = build_ast_from_expression_inner(expression)?;
+    let (res, _) = improve_expr(expr);
+    Ok(res)
+}
+
+fn build_ast_from_expression_inner(expression: Pair<Rule>) -> Result<Expression, Error> {
     match expression.as_rule() {
         Rule::monadicExpr => {
-            let res = Expression::Value(BaseValue::Int(0));
-            Ok(res)
+            let mut iter = expression.into_inner().into_iter();
+            let operator = iter.next().unwrap();
+            let right = build_ast_from_expression_inner(iter.next().unwrap())?;
+            if operator.as_str() == "-" {
+                Ok(Expression::Unary(super::UnaryOperator::UnaryMinus, right.into()))
+            } else {
+                Err(Error::ParseError { message: format!("Unknown unary operator {}", operator.as_str()).into() })
+            }
         },
         Rule::dyadicExpr => {
             let mut iter = expression.into_inner().into_iter();
-            let left = build_ast_from_expression(iter.next().unwrap())?;
+            let left = build_ast_from_expression_inner(iter.next().unwrap())?;
             let operator = iter.next().unwrap();
-            let right = build_ast_from_expression(iter.next().unwrap())?;
+            let right = build_ast_from_expression_inner(iter.next().unwrap())?;
             match operator.as_str() {
-                "+" => Ok(Expression::Arithmetic(ArithmeticExpression::Plus(left.into(), right.into()))),
-                "-" => Ok(Expression::Arithmetic(ArithmeticExpression::Minus(left.into(), right.into()))),
-                "*" => Ok(Expression::Arithmetic(ArithmeticExpression::Mult(left.into(), right.into()))),
-                "/" => Ok(Expression::Arithmetic(ArithmeticExpression::Div(left.into(), right.into()))),
-                "%" => Ok(Expression::Arithmetic(ArithmeticExpression::Mod(left.into(), right.into()))),
+                "+" => Ok(Expression::Binary(Operator::Plus, left.into(), right.into())),
+                "-" => Ok(Expression::Binary(Operator::Minus, left.into(), right.into())),
+                "*" => Ok(Expression::Binary(Operator::Mult, left.into(), right.into())),
+                "/" => Ok(Expression::Binary(Operator::Div, left.into(), right.into())),
+                "%" => Ok(Expression::Binary(Operator::Mod, left.into(), right.into())),
 
-                ">"   => Ok(Expression::Logical(LogicalExpression::GT(left.into(), right.into()))),
-                "<"   => Ok(Expression::Logical(LogicalExpression::LT(left.into(), right.into()))),
-                ">="  => Ok(Expression::Logical(LogicalExpression::GQ(left.into(), right.into()))),
-                "<="  => Ok(Expression::Logical(LogicalExpression::LQ(left.into(), right.into()))),
-                "=="  => Ok(Expression::Logical(LogicalExpression::EQ(left.into(), right.into()))),
-                "!="  => Ok(Expression::Logical(LogicalExpression::NQ(left.into(), right.into()))),
+                ">"   => Ok(Expression::Binary(Operator::GT, left.into(), right.into())),
+                "<"   => Ok(Expression::Binary(Operator::LT, left.into(), right.into())),
+                ">="  => Ok(Expression::Binary(Operator::GQ, left.into(), right.into())),
+                "<="  => Ok(Expression::Binary(Operator::LQ, left.into(), right.into())),
+                "=="  => Ok(Expression::Binary(Operator::EQ, left.into(), right.into())),
+                "!="  => Ok(Expression::Binary(Operator::NQ, left.into(), right.into())),
 
-                "&&"  => Ok(Expression::Logical(LogicalExpression::AND(left.into(), right.into()))),
-                "||"  => Ok(Expression::Logical(LogicalExpression::OR(left.into(), right.into()))),
+                "&&"  => Ok(Expression::Binary(Operator::AND, left.into(), right.into())),
+                "||"  => Ok(Expression::Binary(Operator::OR, left.into(), right.into())),
 
                 op => Err(Error::ParseError { message: format!("Unknown operator {}", op).into() })
             }
         },
         Rule::expression => {
-            return build_ast_from_expression(expression.into_inner().into_iter().next().unwrap())
+            return build_ast_from_expression_inner(expression.into_inner().into_iter().next().unwrap())
         },
         Rule::parenth_expr => {
-            let inner_expr = build_ast_from_expression(expression.into_inner().into_iter().next().unwrap().into_inner().into_iter().next().unwrap())?;
-            return Ok(Expression::Parenthes(inner_expr.into()))
+            let inner_expr = build_ast_from_expression_inner(expression.into_inner().into_iter().next().unwrap().into_inner().into_iter().next().unwrap())?;
+            Ok(Expression::Unary(super::UnaryOperator::Parentheses, inner_expr.into()))
         },
         _ => {
             return Ok(Expression::Value(build_ast_from_value(expression)?))
