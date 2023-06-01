@@ -3,22 +3,23 @@ source_file   =  { block }
 block         =  { statement* }
 bracket_block =  { "{" ~ block ~ "}" }
 newline       = _{ "\n" | "\r" }
-WHITESPACE    = _{ " " | "\t" | "\n" }
+WHITESPACE    = _{ " " | "\t" | "\n" | "\r" }
 
 statement      =  { (command | init_statement | if_statement | for_statement | while_statement) }
 command        =  { function_call ~ ";" }
-function_call  =  { ident ~ "(" ~ params? ~ ")" }
+function_call  = _{ ident ~ "(" ~ params? ~ ")" }
 params         = _{ expression ~ ("," ~ expression)* }
-init_statement =  { type? ~ initialization ~ ("," ~ initialization)* ~ ";" }
+init_statement =  { type_name? ~ initialization  ~ ";" }
 initialization =  { ident ~ "=" ~ expression }
 
-if_statement    =  { "if" ~ "(" ~ expression ~ ")" ~ bracket_block }
+if_statement    =  { "if" ~ "(" ~ expression ~ ")" ~ bracket_block ~ else_block?}
+else_block      = _{ "else" ~ bracket_block }
 for_statement   =  { "for" ~ ident ~ "in" ~ range ~ bracket_block }
 range           =  { "(" ~ numVar ~ ".." ~ numVar ~ ")" }
 numVar          = _{ integer | ident }
 while_statement =  { "while" ~ "(" ~ expression ~ ")" ~ bracket_block }
 
-type           =  { array_type2d | array_type1d | primitive_type }
+type_name      =  { array_type2d | array_type1d | primitive_type }
 primitive_type = _{ "bool" | "int" | "color" | "float" }
 array_type2d   = _{ (array_type1d | primitive_type) ~ "[" ~ numVar ~ "]" }
 array_type1d   = _{ primitive_type ~ "[" ~ numVar ~ "]" }
@@ -34,7 +35,7 @@ monadicExpr  = { operator ~ expression }
 dyadicExpr   = { (monadicExpr | term) ~ operator ~ expression }
 parenth_expr = { "(" ~ expression ~ ")" }
 
-term = _{ decimal | integer | color | ident | parenth_expr }
+term = _{ decimal | integer | color | boolean | ident | parenth_expr }
 
 operator = {
   
@@ -52,6 +53,7 @@ operator = {
   | "&&"
   | "||"
 }
+boolean = { "true" | "false" }
 color = @{"Color::" ~ (ident | function_call)}
 integer = @{ "_"? ~ ASCII_DIGIT+ }
 decimal = @{ "_"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* }

@@ -1,3 +1,28 @@
 circle(320, 240, 100);
+int x = 15 * 32;
+if (x > 320) {
+    rectangle(100, 100, 200, 200);
+} else {
+    rectangle(100, 100, 100+x, 100+x);
+}
 
-rectangle(100);
+
+for i in (12 .. 32) {
+    int i = 3;
+    i = 4 * 5 + (32 - 17) / 4 - 2;
+    r4 = 4;
+    if (x > 4) {
+    } else {
+    }
+
+}
+circle(320, 240, r3);
+setBrushColor(Color::Red);
+int x = 5 * (6 + 10);
+
+if (x > 5) {
+    while (t == 0 && false) {
+    }
+} else {
+    triangle(10);
+}

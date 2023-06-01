@@ -1,60 +1,63 @@
 pub mod builder;
-
+#[derive(Debug)]
 pub enum BaseType {
     Int,
     Bool,
     Color,
     Float
 }
-
-pub enum BaseValue<'a> {
-    Id(&'a str),
+#[derive(Debug)]
+pub enum BaseValue {
+    Id(String),
     Int(i32),
     Bool(bool),
     Color(u8, u8, u8),
     Float(f32)
 }
-
+#[derive(Debug)]
 pub enum Type {
     Primitive(BaseType),
     ArrayOneD(BaseType),
     ArrayTwoD(BaseType)
 }
-
-pub enum LogicalExpression<'a> {
-    Value(BaseValue<'a>),
-    EQ(Box<LogicalExpression<'a>>, Box<LogicalExpression<'a>>),
-    NQ(Box<LogicalExpression<'a>>, Box<LogicalExpression<'a>>),
-    GT(Box<LogicalExpression<'a>>, Box<LogicalExpression<'a>>),
-    LT(Box<LogicalExpression<'a>>, Box<LogicalExpression<'a>>),
-    GQ(Box<LogicalExpression<'a>>, Box<LogicalExpression<'a>>),
-    LQ(Box<LogicalExpression<'a>>, Box<LogicalExpression<'a>>)
+#[derive(Debug)]
+pub enum LogicalExpression {
+    Value(BaseValue),
+    EQ(Box<Expression>, Box<Expression>),
+    NQ(Box<Expression>, Box<Expression>),
+    GT(Box<Expression>, Box<Expression>),
+    LT(Box<Expression>, Box<Expression>),
+    GQ(Box<Expression>, Box<Expression>),
+    LQ(Box<Expression>, Box<Expression>),
+    AND(Box<Expression>, Box<Expression>),
+    OR(Box<Expression>, Box<Expression>)
 }
-
-pub enum ArithmeticExpression<'a> {
-    Value(BaseValue<'a>),
-    UnaryMinus(Box<ArithmeticExpression<'a>>),
-    Plus(Box<ArithmeticExpression<'a>>, Box<ArithmeticExpression<'a>>),
-    Minus(Box<ArithmeticExpression<'a>>, Box<ArithmeticExpression<'a>>),
-    Mult(Box<ArithmeticExpression<'a>>, Box<ArithmeticExpression<'a>>),
-    Div(Box<ArithmeticExpression<'a>>, Box<ArithmeticExpression<'a>>), 
-    Mod(Box<ArithmeticExpression<'a>>, Box<ArithmeticExpression<'a>>)
+#[derive(Debug)]
+pub enum ArithmeticExpression {
+    Value(BaseValue),
+    UnaryMinus(Box<Expression>),
+    Plus(Box<Expression>, Box<Expression>),
+    Minus(Box<Expression>, Box<Expression>),
+    Mult(Box<Expression>, Box<Expression>),
+    Div(Box<Expression>, Box<Expression>), 
+    Mod(Box<Expression>, Box<Expression>)
 }
-
-pub enum Expression<'a> {
-    Primitive(Type),
-    Logical(LogicalExpression<'a>),
-    Arithmetic(ArithmeticExpression<'a>)
+#[derive(Debug)]
+pub enum Expression {
+    Value(BaseValue),
+    Logical(LogicalExpression),
+    Arithmetic(ArithmeticExpression),
+    Parenthes(Box<Expression>)
 }
-
-pub enum AstNode<'a> {
-    Command { name: &'a str, args: Vec<Expression<'a>> },
-    Init    { typ: Option<Type>, val : &'a str, expr: Expression<'a> },
-    For     { val: &'a str, from: Expression<'a>, to: Expression<'a>, block: AstBlock<'a> },
-    While   { clause: Expression<'a>, block: AstBlock<'a>},
-    If      { clause: Expression<'a>, block: AstBlock<'a>}
+#[derive(Debug)]
+pub enum AstNode {
+    Command { name: String, args: Vec<Expression> },
+    Init    { typ: Option<BaseType>, val : String, expr: Expression },
+    For     { val: String, from: BaseValue, to: BaseValue, block: AstBlock },
+    While   { clause: Expression, block: AstBlock},
+    If      { clause: Expression, block: AstBlock, else_block: Option<AstBlock>}
 }
-
-pub struct AstBlock<'a> {
-    pub(crate) nodes : Vec<AstNode<'a>>
+#[derive(Debug)]
+pub struct AstBlock {
+    pub(crate) nodes : Vec<AstNode>
 }
