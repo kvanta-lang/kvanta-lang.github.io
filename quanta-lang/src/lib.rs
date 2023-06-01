@@ -1,6 +1,7 @@
 mod utils;
 
 use wasm_bindgen::prelude::*;
+use quanta_parser::*;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -19,6 +20,8 @@ pub fn greet() {
 }
 
 #[wasm_bindgen]
-pub fn is_good_text(source : &str) -> bool{
-    source == "function(a, b)"
+pub fn is_great_text(source : &str) -> bool {
+    return true;
+    //alert(&format!("Is good text \"{}\"? Result: {}", source, quanta_parser::parse_text(source)));
+    //return quanta_parser::parse_text(source);
 }
