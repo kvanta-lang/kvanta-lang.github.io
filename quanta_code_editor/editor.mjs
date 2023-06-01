@@ -51,17 +51,22 @@ async function init_code_editor(field_checker) {
   function run_code() {
     console.log("Running code...")
     let text = editor.state.doc.toString().trim();
-    console.log("text: " + text);
     let canvas = document.getElementById("drawing");
     const ctx = canvas.getContext("2d");
     let canvas_state = field_checker(text).field;
+    let cell_width = canvas.width / canvas_state.length;
+    let cell_height = canvas.height / canvas_state.length;
     for (var i = 0; i < canvas_state.length; i++) {
       for (var j = 0; j < canvas_state[i].length; j++) {
         let r  = canvas_state[i][j] >> 16 & 255;
         let g  = canvas_state[i][j] >> 8 & 255;
-        let b  = canvas_state[i][j] & 255;
-        ctx.fillStyle = "rgba("+r+","+g+","+b+", 1)";
-        ctx.fillRect( i, j, 1, 1);
+        let b  = canvas_state[i][j] & 255; 
+        if (i === 10 && j === 10 ) {
+          ctx.fillStyle = "rgba(0,0,0,1)";
+        } else {
+        ctx.fillStyle = "rgba("+r+","+g+","+b+",1)";
+        }
+        ctx.fillRect( i, j, cell_width, cell_height);
       }
     }
   }
@@ -96,6 +101,14 @@ async function init_code_editor(field_checker) {
 
   document.getElementById("runButton").addEventListener("click", run_code);
   document.getElementById("saveButton").addEventListener("click", saveCode);
+  document.getElementById("saveImageButton").addEventListener('click', function (e) {
+    const link = document.createElement('a');
+    link.download = 'download.png';
+    let canvas = document.getElementById("drawing");
+    link.href = canvas.toDataURL();
+    link.click();
+    link.delete;
+  });
 }
 
 export {init_code_editor};
