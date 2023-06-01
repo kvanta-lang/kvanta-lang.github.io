@@ -5,7 +5,7 @@ from code_editor.views import index, program_code
 
 urlpatterns = [
     path("", index, name="index"),
-    path("<int:program_code_id>", program_code, name="program_code"),
+    path("<uuid:program_code_id>", program_code, name="program_code"),
 ]
 
 
