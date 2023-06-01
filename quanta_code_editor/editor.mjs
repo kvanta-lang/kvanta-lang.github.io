@@ -4,9 +4,23 @@ import {keymap} from "@codemirror/view"
 import {acceptCompletion} from "@codemirror/autocomplete"
 
 async function init_code_editor(field_checker) {
-  let sync_val = "";
+  let sync_val = localStorage.getItem("code");
 
-  console.log("Hello from Quanta Code Editor!")
+  console.log("Hello from Quanta Code Editor!");
+
+  function download(filename, text) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+  
+    element.style.display = 'none';
+    document.body.appendChild(element);
+  
+    element.click();
+  
+    document.body.removeChild(element);
+  }
+
   let editor = new EditorView({
     extensions: [
       basicSetup,
@@ -15,17 +29,14 @@ async function init_code_editor(field_checker) {
       EditorView.updateListener.of(
         function(e) {
           sync_val = e.state.doc.toString();
+          localStorage.setItem("code", sync_val);
         }
       ),
     ],
-    doc: "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    doc: sync_val?.length > 0 ? sync_val : "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
     parent: document.getElementById("code"),
   });
-  
-  
-  console.log("Editor is ready!")
-  document.getElementById("runButton").addEventListener("click", run_code);
-  
+
   function run_code() {
     console.log("Running code...")
     let text = editor.state.doc.toString().trim();
@@ -42,8 +53,18 @@ async function init_code_editor(field_checker) {
         ctx.fillRect( i, j, 1, 1);
       }
     }
+    download('code.txt', editor.state.doc.toString());
   }
 
+  function saveCode() {
+    console.log("Saving code...");
+    download('code.txt', editor.state.doc.toString());
+  }
+
+  
+
+  document.getElementById("runButton").addEventListener("click", run_code);
+  document.getElementById("saveButton").addEventListener("click", saveCode);
 }
 
 export {init_code_editor};
