@@ -27,9 +27,10 @@ export function check_good_text(text) {
     var array = [];
     
     // Fill the array with the green color value
-    for (var i = 0; i < height; i++) {
+    for (var i = 0; i < width; i++) {
       var row = [];
-      for (var j = 0; j < width; j++) {
+      for (var j = 0; j < height; j++) {
+
         row.push(color);
       }
       array.push(row);
