@@ -8,6 +8,31 @@ async function init_code_editor(field_checker) {
 
   console.log("Hello from Quanta Code Editor!");
 
+  function createCodeEditor(initialValue) {
+    if (initialValue === undefined) {
+      initialValue = sync_val?.length > 0 ? sync_val : "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    }
+    return new EditorView({
+      extensions: [
+        basicSetup,
+        quanta(),
+        keymap.of([{key: "Tab", run: acceptCompletion}]),
+        EditorView.updateListener.of(
+          function(e) {
+            sync_val = e.state.doc.toString();
+            localStorage.setItem("code", sync_val);
+          }
+        ),
+        EditorView.theme({
+          "&": {height: "420px"},
+          ".cm-scroller": {overflow: "auto"}
+        }),
+      ],
+      doc: initialValue,
+      parent: document.getElementById("code"),
+    });
+  }
+
   function download(filename, text) {
     var element = document.createElement('a');
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
@@ -21,21 +46,7 @@ async function init_code_editor(field_checker) {
     document.body.removeChild(element);
   }
 
-  let editor = new EditorView({
-    extensions: [
-      basicSetup,
-      quanta(),
-      keymap.of([{key: "Tab", run: acceptCompletion}]),
-      EditorView.updateListener.of(
-        function(e) {
-          sync_val = e.state.doc.toString();
-          localStorage.setItem("code", sync_val);
-        }
-      ),
-    ],
-    doc: sync_val?.length > 0 ? sync_val : "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
-    parent: document.getElementById("code"),
-  });
+  let editor = createCodeEditor();
 
   function run_code() {
     console.log("Running code...")
@@ -76,21 +87,7 @@ async function init_code_editor(field_checker) {
         const filecontent = evt.target.result;
         editor.dom.parentNode.removeChild(editor.dom);
 
-        editor = new EditorView({
-          extensions: [
-            basicSetup,
-            quanta(),
-            keymap.of([{key: "Tab", run: acceptCompletion}]),
-            EditorView.updateListener.of(
-              function(e) {
-                sync_val = e.state.doc.toString();
-                localStorage.setItem("code", sync_val);
-              }
-            ),
-          ],
-          doc: filecontent,
-          parent: document.getElementById("code"),
-        });
+        editor = createCodeEditor(filecontent);
     };
 
     reader.readAsText(evt.target.files[0]);
