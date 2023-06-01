@@ -1,4 +1,4 @@
-import {compile_code, greet} from '../quanta-lang/pkg/quanta_lang.js'
+import {is_good_text, greet} from '../pkg/game_of_life.js'
 
 export function check_good_text(text) {
     /**
@@ -15,9 +15,8 @@ export function check_good_text(text) {
     */
 
     console.log("check_good_text: " + text);
-    let message = compile_code(text);
     let color = 0xff0000;
-    if (message == "0\n\n0000") {
+    if (text === "function(a, b)") {
         color = 0x00ff00;
     }
 
@@ -37,8 +36,6 @@ export function check_good_text(text) {
       array.push(row);
     }
     return {
-      error_code: 0,
-      error_message: "",  
-      field: array,
+        field: array,
     };
 }
