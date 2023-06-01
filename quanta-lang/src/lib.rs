@@ -1,7 +1,8 @@
 mod utils;
+mod compiler;
 
 use wasm_bindgen::prelude::*;
-use quanta_parser::parse_text;
+//use quanta_parser::parse_text;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -20,7 +21,6 @@ pub fn greet() {
 }
 
 #[wasm_bindgen]
-pub fn is_great_text(source : &str) -> bool {
-    //alert(&format!("Is good text \"{}\"? Result: {}", source, quanta_parser::parse_text(source)));
-    return parse_text(source);
+pub fn compile_code(source : &str) -> String {
+    compiler::compilation_result(source)
 }

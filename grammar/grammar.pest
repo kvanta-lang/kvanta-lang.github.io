@@ -6,7 +6,8 @@ newline       = _{ "\n" | "\r" }
 WHITESPACE    = _{ " " | "\t" | "\n" }
 
 statement      =  { (command | init_statement | if_statement | for_statement | while_statement) }
-command        =  { ident ~ "(" ~ params? ~ ");" }
+command        =  { function_call ~ ";" }
+function_call  =  { ident ~ "(" ~ params? ~ ")" }
 params         = _{ expression ~ ("," ~ expression)* }
 init_statement =  { type? ~ initialization ~ ("," ~ initialization)* ~ ";" }
 initialization =  { ident ~ "=" ~ expression }
@@ -33,7 +34,7 @@ monadicExpr  = { operator ~ expression }
 dyadicExpr   = { (monadicExpr | term) ~ operator ~ expression }
 parenth_expr = { "(" ~ expression ~ ")" }
 
-term = _{ decimal | integer | ident | parenth_expr }
+term = _{ decimal | integer | color | ident | parenth_expr }
 
 operator = {
   
@@ -41,6 +42,7 @@ operator = {
   | "*"
   | "-"
   | "/"
+  | "%"
   | "<"
   | ">"
   | "=="
@@ -50,7 +52,7 @@ operator = {
   | "&&"
   | "||"
 }
-
+color = @{"Color::" ~ (ident | function_call)}
 integer = @{ "_"? ~ ASCII_DIGIT+ }
 decimal = @{ "_"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* }
 ident   = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }

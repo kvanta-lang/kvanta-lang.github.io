@@ -1,4 +1,4 @@
-import {is_great_text, greet} from '../quanta-lang/pkg/quanta_lang.js'
+import {compile_code, greet} from '../quanta-lang/pkg/quanta_lang.js'
 
 export function check_good_text(text) {
     /**
@@ -15,8 +15,9 @@ export function check_good_text(text) {
     */
 
     console.log("check_good_text: " + text);
+    let message = compile_code(text);
     let color = 0xff0000;
-    if (is_great_text(text)) {
+    if (message == "0\n\n0000") {
         color = 0x00ff00;
     }
 
@@ -35,6 +36,8 @@ export function check_good_text(text) {
       array.push(row);
     }
     return {
-        field: array,
+      error_code: 0,
+      error_message: "",  
+      field: array,
     };
 }
