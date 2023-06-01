@@ -1,4 +1,4 @@
-import {is_good_text, greet} from '../pkg/game_of_life.js'
+import {is_great_text, greet} from '../quanta-lang/pkg/quanta_lang.js'
 
 export function check_good_text(text) {
     /**
@@ -16,7 +16,7 @@ export function check_good_text(text) {
 
     console.log("check_good_text: " + text);
     let color = 0xff0000;
-    if (text === "function(a, b)") {
+    if (is_great_text(text)) {
         color = 0x00ff00;
     }
 

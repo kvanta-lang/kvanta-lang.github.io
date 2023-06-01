@@ -2,13 +2,11 @@
 /pkg
 /.git
 /Cargo.lock
-/grammar
-!/grammar/grammar.js
-!/grammar/test.txt
 quanta_code_editor/node_modules/
 quanta_code_editor/package-lock.json
 quanta_code_editor/quanta/node_modules/
 quanta_code_editor/quanta/package-lock.json
+quanta_code_editor/editor.bundle.
 quanta_code_editor/editor.bundle.js
 /venv/
 # Created by https://www.toptal.com/developers/gitignore/api/pycharm+all,django
@@ -273,3 +271,6 @@ fabric.properties
 !.idea/runConfigurations
 
 # End of https://www.toptal.com/developers/gitignore/api/pycharm+all,django
+
+quanta-parser/target
+

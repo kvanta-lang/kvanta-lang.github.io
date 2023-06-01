@@ -1,0 +1,58 @@
+document      =  { SOI ~ block ~ EOI }
+source_file   =  { block }
+block         =  { statement* }
+bracket_block =  { "{" ~ block ~ "}" }
+newline       = _{ "\n" | "\r" }
+WHITESPACE    = _{ " " | "\t" | "\n" }
+
+statement      =  { (command | init_statement | if_statement | for_statement | while_statement) }
+command        =  { ident ~ "(" ~ params? ~ ");" }
+params         = _{ expression ~ ("," ~ expression)* }
+init_statement =  { type? ~ initialization ~ ("," ~ initialization)* ~ ";" }
+initialization =  { ident ~ "=" ~ expression }
+
+if_statement    =  { "if" ~ "(" ~ expression ~ ")" ~ bracket_block }
+for_statement   =  { "for" ~ ident ~ "in" ~ range ~ bracket_block }
+range           =  { "(" ~ numVar ~ ".." ~ numVar ~ ")" }
+numVar          = _{ integer | ident }
+while_statement =  { "while" ~ "(" ~ expression ~ ")" ~ bracket_block }
+
+type           =  { array_type2d | array_type1d | primitive_type }
+primitive_type = _{ "bool" | "int" | "color" | "float" }
+array_type2d   = _{ (array_type1d | primitive_type) ~ "[" ~ numVar ~ "]" }
+array_type1d   = _{ primitive_type ~ "[" ~ numVar ~ "]" }
+
+number     = { decimal | integer }
+expression = {
+    monadicExpr
+  | dyadicExpr
+  | term
+}
+
+monadicExpr  = { operator ~ expression }
+dyadicExpr   = { (monadicExpr | term) ~ operator ~ expression }
+parenth_expr = { "(" ~ expression ~ ")" }
+
+term = _{ decimal | integer | ident | parenth_expr }
+
+operator = {
+  
+  | "+"
+  | "*"
+  | "-"
+  | "/"
+  | "<"
+  | ">"
+  | "=="
+  | "!="
+  | ">="
+  | "<="
+  | "&&"
+  | "||"
+}
+
+integer = @{ "_"? ~ ASCII_DIGIT+ }
+decimal = @{ "_"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* }
+ident   = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+string  = @{ "'" ~ ("''" | (!"'" ~ ANY))* ~ "'" }
+COMMENT = _{ "NB." ~ (!"\n" ~ ANY)* }
