@@ -51,7 +51,18 @@ statement[@isGroup=Statement] {
   BuiltInFunction { (
     kw<"circle"> | 
     kw<"rectangle"> |
-    kw<"line"> 
+    kw<"line"> |
+    kw<"setLineColor"> |
+    kw<"setFigureColor"> |
+    kw<"line"> |
+    kw<"Color"> |
+    kw<"Green"> |
+    kw<"Blue"> |
+    kw<"Red"> |
+    kw<"Cyan"> |
+    kw<"Pink"> |
+    kw<"Black"> |
+    kw<"White">
   ) ParenthesizedExpression statement} |
   DoStatement { kw<"do"> statement kw<"while"> ParenthesizedExpression semi } |
   IfStatement { kw<"if"> ParenthesizedExpression statement (!else kw<"else"> statement)? } |

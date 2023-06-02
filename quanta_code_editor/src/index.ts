@@ -28,12 +28,22 @@ export const QuantaLanguage = LRLanguage.define({
 
 export const quantaCompletion = QuantaLanguage.data.of({
   autocomplete: completeFromList([
-    {label: "function", type: "keyword"},
     {label: "bool", type: "keyword"},
     {label: "int", type: "keyword"},
+    {label: "float", type: "keyword"},
+    {label: "Color", type: "keyword"},
+    {label: "Green", type: "keyword"},
+    {label: "Blue", type: "keyword"},
+    {label: "Red", type: "keyword"},
+    {label: "Cyan", type: "keyword"},
+    {label: "Pink", type: "keyword"},
+    {label: "Black", type: "keyword"},
+    {label: "White", type: "keyword"},
     {label: "circle", type: "function"},
     {label: "rectangle", type: "function"},
-    {label: "line", type: "function"}
+    {label: "line", type: "function"},
+    {label: "setLineColor", type: "function"},
+    {label: "setFigureColor", type: "function"},
   ])
 })
 

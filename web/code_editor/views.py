@@ -9,7 +9,7 @@ from code_editor.models import ProgramCode
 
 def index(request):
     code = ProgramCode.objects.create(
-        code="print('Hello World')\n",
+        code="setFigureColor(Color::Green);\ncircle(300, 210, 50);\n"
     )
     return HttpResponseRedirect(reverse_lazy("code_editor:program_code", args=[code.id]))
 

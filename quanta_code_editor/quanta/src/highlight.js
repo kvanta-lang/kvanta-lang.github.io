@@ -2,11 +2,9 @@ import {styleTags, tags as t} from "@lezer/highlight"
 
 export const jsHighlight = styleTags({
   "get set async static": t.modifier,
-  "for while do if else switch try catch finally return throw break continue default case": t.controlKeyword,
+  "for while do if else": t.controlKeyword,
   "in of await yield void typeof delete instanceof": t.operatorKeyword,
-  "let var const function class extends": t.definitionKeyword,
-  "import export from": t.moduleKeyword,
-  "with debugger as new circle rectangle line": t.keyword,
+  "with debugger as new circle rectangle line setLineColor setFigureColor Color Green Blue Red Cyan Pink Black White": t.keyword,
   TemplateString: t.special(t.string),
   super: t.atom,
   BooleanLiteral: t.bool,
