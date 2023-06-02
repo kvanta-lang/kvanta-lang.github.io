@@ -28,7 +28,7 @@ fn build_ast_from_block(statements: Pairs<Rule>) -> Result<AstBlock, Error> {
             Rule::statement => {
                 block.nodes.push(build_ast_from_statement(pair.into_inner())?);
             }
-            _ => unreachable!()
+            _ => unreachable!("Unexpected code 6")
         }
     }
     Ok(block)
@@ -43,7 +43,7 @@ fn build_ast_from_statement(statement: Pairs<Rule>) -> Result<AstNode, Error> {
         Rule::if_statement => build_ast_from_if(state.into_inner()),
         Rule::for_statement => build_ast_from_for(state.into_inner()),
         Rule::while_statement => build_ast_from_while(state.into_inner()),
-        _ => unreachable!()
+        _ => unreachable!("Unexpected code 7")
     }
 }
 
@@ -193,7 +193,7 @@ fn build_ast_from_value(val: Pair<Rule>) -> Result<BaseValue, Error> {
         Rule::boolean => Ok(BaseValue::Bool(val.as_str() == "true")),
         Rule::color   => build_ast_from_color(val),
         Rule::ident   => Ok(BaseValue::Id(build_ast_from_ident(val).unwrap())),
-        _ => unreachable!()
+        _ => unreachable!("Unexpected code 8")
     }
 }
 
@@ -223,6 +223,6 @@ fn build_ast_from_type(type_val: Pair<Rule>) -> Result<BaseType, Error> {
         "bool" => Ok(BaseType::Bool),
         "color" => Ok(BaseType::Color),
         "float" => Ok(BaseType::Float),
-        _ => unreachable!()
+        _ => unreachable!("Unexpected code 9")
     }
 }

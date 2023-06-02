@@ -14,8 +14,17 @@ export function check_good_text(text) {
     * Returns a Field object with state of every pixel in the canvas.
     */
 
-    console.log("check_good_text: " + text);
+    console.log("Compile code: " + text);
     let message = compile_code(text);
+    let parts = message.split('\n');
+    let my_responce = {
+      error_code: parseInt(parts[0]),
+      error_message : parts[1],
+      field : parts[2]
+    }
+    console.log(my_responce);
+    console.log("Peace!");
+    return my_responce;
     console.log("Compilation result:" + message)
     let color = 0xff0000;
     if (message == "0\n\n0000") {

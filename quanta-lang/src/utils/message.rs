@@ -23,16 +23,16 @@ impl Message {
     pub fn create_error_message(error: Error) -> Message {
         match error {
             Error::ParseError { ref message } => {
-                Message { error_code:1, error_message: message.to_string(), canvas: Canvas::empty() }
+                Message { error_code:1, error_message: message.to_string(), canvas: Canvas::default() }
             }
             Error::LogicError { ref message } => {
-                Message { error_code:2, error_message: message.to_string(), canvas: Canvas::empty() }
+                Message { error_code:2, error_message: message.to_string(), canvas: Canvas::default() }
             }
             Error::TypeError { ref message } => {
-                Message { error_code:3, error_message: message.to_string(), canvas: Canvas::empty() }
+                Message { error_code:3, error_message: message.to_string(), canvas: Canvas::default() }
             }
             Error::RuntimeError { ref message } => {
-                Message { error_code:4, error_message: message.to_string(), canvas: Canvas::empty() }
+                Message { error_code:4, error_message: message.to_string(), canvas: Canvas::default() }
             }
         }
     }

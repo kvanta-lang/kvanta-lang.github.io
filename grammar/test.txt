@@ -1,4 +1,12 @@
 circle(320, 240, 100);
+circle(320, 240, 120);
+for i in (12..15) {
+  rectangle(i, i, i * 2, i * 2);
+}
+setFigureColor(Color::Red)
+rectangle(0,0,100,100);
+
+circle(320, 240, 100);
 int x = 101;
 circle(x, x, x);
 if (x > 100) {

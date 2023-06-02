@@ -37,9 +37,9 @@ impl Canvas {
 impl fmt::Display for Canvas {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for line in self.pixels.as_slice().chunks(self.width as usize) {
-            for &pixel in line {
-                write!(f, "{}", pixel as usize)?;
-            }
+           // for &pixel in line {
+                write!(f, "{}", line[0] as usize)?;
+            //}
         }
         Ok(())
     }

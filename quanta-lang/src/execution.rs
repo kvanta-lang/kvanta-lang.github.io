@@ -105,12 +105,14 @@ impl Execution {
             "setLineColor" => {
                 if let BaseValue::Color(r,g,b) = vals[0] {
                     self.lineColor = vals[0].clone();
+                    return None;
                 }
                 return Some(Error::RuntimeError { message: "Incorrect arguments for setLineColor function!".into() })
             },
             "setFigureColor" => {
                 if let BaseValue::Color(r,g,b) = vals[0] {
                     self.figureColor = vals[0].clone();
+                    return None;
                 }
                 return Some(Error::RuntimeError { message: "Incorrect arguments for setFigureColor function!".into() })
             },
@@ -158,7 +160,6 @@ impl Execution {
             return Message::create_error_message(err);
         }
         Message::from_canvas(self.canvas.clone())
-        // self.functions =
     }
 
     pub fn execute_commands(&mut self, nodes : Vec<AstNode>) -> Option<Error> {
@@ -190,7 +191,7 @@ impl Execution {
                         Err(err) => {
                             return Some(err);
                         }
-                        _ => unreachable!()
+                        _ => unreachable!("Unexpected code 1")
                     }
                 },
                 AstNode::While { clause, block } => {
@@ -210,7 +211,7 @@ impl Execution {
                             Err(err) => {
                                 return Some(err);
                             }
-                            _ => unreachable!()
+                            _ => unreachable!("Unexpected code 2")
                         }
                     }
                 },
@@ -265,7 +266,7 @@ impl Execution {
                             BaseValue::Float(num) => Ok(BaseValue::Float((-1.0) * num)),
                             BaseValue::Bool(_) => Err(Error::RuntimeError { message: "Minus bool: {}".into() }),
                             BaseValue::Color(_, _, _) => Err(Error::RuntimeError { message: "Minus color: {}".into() }),
-                            id =>unreachable!()
+                            _ =>unreachable!("Unexpected code 3")
                         }
                     },
                     UnaryOperator::Parentheses => Ok(inner_val)
@@ -318,8 +319,8 @@ fn compare_ints(x: i32, y : i32, op: Operator) -> Result<BaseValue, Error> {
         Operator::GQ => return Ok(BaseValue::Bool(x >= y)),
         Operator::LQ => return Ok(BaseValue::Bool(x <= y)),
         
-        Operator::AND => unreachable!(),
-        Operator::OR => unreachable!(),
+        Operator::AND => unreachable!("Unexpected code 4"),
+        Operator::OR => unreachable!("Unexpected code 5"),
         
         Operator::Plus => Ok(BaseValue::Int(x + y)),
         Operator::Minus => Ok(BaseValue::Int(x - y)),
@@ -339,8 +340,8 @@ fn compare_floats(x: f32, y : f32, op: Operator) -> Result<BaseValue, Error> {
         Operator::GQ => Ok(BaseValue::Bool(x >= y)),
         Operator::LQ => Ok(BaseValue::Bool(x <= y)),
         
-        Operator::AND => unreachable!(),
-        Operator::OR => unreachable!(),
+        Operator::AND => unreachable!("Unexpected code 10"),
+        Operator::OR => unreachable!("Unexpected code 11"),
         
         Operator::Plus => Ok(BaseValue::Float(x + y)),
         Operator::Minus => Ok(BaseValue::Float(x - y)),
@@ -353,21 +354,21 @@ fn compare_floats(x: f32, y : f32, op: Operator) -> Result<BaseValue, Error> {
 fn compare_bools(a: bool, b : bool, op: Operator) -> Result<BaseValue, Error> {
     match op {
 
-        Operator::EQ => unreachable!(),
-        Operator::NQ => unreachable!(),
-        Operator::GT => unreachable!(),
-        Operator::LT => unreachable!(),
-        Operator::GQ => unreachable!(),
-        Operator::LQ => unreachable!(),
+        Operator::EQ => unreachable!("Unexpected code 12"),
+        Operator::NQ => unreachable!("Unexpected code 13"),
+        Operator::GT => unreachable!("Unexpected code 14"),
+        Operator::LT => unreachable!("Unexpected code 15"),
+        Operator::GQ => unreachable!("Unexpected code 16"),
+        Operator::LQ => unreachable!("Unexpected code 17"),
         
         Operator::AND => Ok(BaseValue::Bool(a && b)),
         Operator::OR => Ok(BaseValue::Bool(a || b)),
         
-        Operator::Plus => unreachable!(),
-        Operator::Minus => unreachable!(),
-        Operator::Mult => unreachable!(),
-        Operator::Div => unreachable!(),
-        Operator::Mod =>unreachable!(),
+        Operator::Plus => unreachable!("Unexpected code 18"),
+        Operator::Minus => unreachable!("Unexpected code 19"),
+        Operator::Mult => unreachable!("Unexpected code 20"),
+        Operator::Div => unreachable!("Unexpected code 21"),
+        Operator::Mod => unreachable!("Unexpected code 22"),
     }
 }
 
