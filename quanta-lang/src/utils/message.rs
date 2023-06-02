@@ -31,7 +31,14 @@ impl Message {
             Error::TypeError { ref message } => {
                 Message { error_code:3, error_message: message.to_string(), canvas: Canvas::empty() }
             }
+            Error::RuntimeError { ref message } => {
+                Message { error_code:4, error_message: message.to_string(), canvas: Canvas::empty() }
+            }
         }
+    }
+
+    pub fn from_canvas(canvas: Canvas) -> Message {
+        Message { error_code:0, error_message: String::from(""), canvas }
     }
 }
 

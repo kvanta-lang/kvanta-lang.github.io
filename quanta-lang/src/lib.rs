@@ -1,6 +1,7 @@
 mod utils;
 mod compiler;
 mod program;
+mod execution;
 
 use wasm_bindgen::prelude::*;
 //use quanta_parser::parse_text;

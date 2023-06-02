@@ -1,6 +1,5 @@
 use pest::iterators::{Pairs, Pair};
-use crate::Rule;
-use crate::error::{Error};
+use crate::{Rule, error::Error};
 
 use super::{AstBlock, AstNode, Expression, Operator,  BaseType, BaseValue, goes_before, UnaryOperator };
 

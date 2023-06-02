@@ -1,8 +1,8 @@
 use std::fs;
-use std::sync::Arc;
 
 use quanta_parser::error::Error;
 use quanta_parser::{parse_ast};
+use crate::execution::Execution;
 use crate::program::{Program, create_program};
 use crate::utils::message::Message;
 
@@ -22,7 +22,10 @@ fn compile(source : &str) -> Message {
                 },
                 None => {
                     print!("COMPILATION SUCCESS!!!!!!!");
-                    Message::default()
+                    let mut exec = Execution::from_program(program);
+                    exec.execute()
+                    // let exec = Execution{};
+                    // exec.execute(program);
                 }
             }
         }

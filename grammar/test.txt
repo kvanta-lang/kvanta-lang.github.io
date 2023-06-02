@@ -1,29 +1,22 @@
 circle(320, 240, 100);
-int x = 15 * 32;
-if (x > 320) {
-    rectangle(100, 100, 200, 200);
+int x = 101;
+circle(x, x, x);
+if (x > 100) {
+    circle(1,1,1);
+    circle(2,2,2);
 } else {
-    rectangle(100, 100, 100+x, 100+x);
+    circle(3,3,3);
+    circle(4,4,4);
+    circle(5,5,5);
 }
 
-
-for i in (12 .. 32) {
-    int j = 3;
-    i = 4 * 5 + (32 - 17) / 4 - 2;
-    bool r4 = true;
-    if (x > 4) {
-    } else {
-    }
-
+int j = 0;
+while (j < 13) {
+    rectangle(j,j, j * 2, j * 2);
+    j = j + 1;
 }
-int r3 = 0;
-circle(320, 240, r3);
-bool ch = false;
 
-if (x > 5) {
-    int t = 0;
-    while ((t == 0) && false) {
-    }
-} else {
-    int t = 2;
+for q in (5 .. -1) {
+    circle(100,100,100);
+    line(q+2,q+2,q+2,q+2);
 }

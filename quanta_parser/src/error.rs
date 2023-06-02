@@ -8,6 +8,7 @@ pub enum Error {
     ParseError {message: Box<str>},
     LogicError {message: Box<str>},
     TypeError {message: Box<str>},
+    RuntimeError {message: Box<str>}
 }
 
 impl Error {
@@ -32,6 +33,9 @@ impl fmt::Display for Error {
             },
             Error::TypeError{message} => {
                 write!(f, "Got type checker error: {}", message)
+            }
+            Error::RuntimeError{message} => {
+                write!(f, "Got runtime error: {}", message)
             }
         }
         

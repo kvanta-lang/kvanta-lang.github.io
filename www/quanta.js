@@ -16,6 +16,7 @@ export function check_good_text(text) {
 
     console.log("check_good_text: " + text);
     let message = compile_code(text);
+    console.log("Compilation result:" + message)
     let color = 0xff0000;
     if (message == "0\n\n0000") {
         color = 0x00ff00;
