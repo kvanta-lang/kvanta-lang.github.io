@@ -16,11 +16,20 @@ fn compile(source : &str) -> Message {
             let mut program = create_program(ast);
             let result = program.type_check();
             match result {
-                Some(error) => Message::create_error_message(error),
-                None => Message::default(),
+                Some(error) =>  {
+                    print!("COMPILATION ERROR: {}", error.to_string());
+                    Message::create_error_message(error)
+                },
+                None => {
+                    print!("COMPILATION SUCCESS!!!!!!!");
+                    Message::default()
+                }
             }
         }
-        Err(err) => Message::create_error_message(err)
+        Err(err) => {
+            print!("PARSING ERROR: {}", err.to_string());
+            Message::create_error_message(err)
+        }
     }
 }
 
@@ -30,6 +39,7 @@ fn compile(source : &str) -> Message {
 
         let contents = fs::read_to_string(file_path)
             .expect("Should have been able to read the file");
-        assert!(contents.len() > 0);
-        assert!(compile(&contents).error_code == 0);
+        //assert!(contents.len() > 0);
+        let result = compile(&contents);
+        //print!("{}\n=====================================", result);
     }

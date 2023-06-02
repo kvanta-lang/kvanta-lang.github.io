@@ -21,13 +21,37 @@ pub fn create_program(ast: AstBlock) -> Program {
 
 impl Program {
     pub fn type_check(&mut self) -> Option<Error> {
-        for line in &self.lines.nodes {
+        let nodes = self.lines.nodes.clone();
+        for line in nodes {
             match line {
-                AstNode::Command { name, args } => {self.clone().type_check_command(name.clone(), args.clone())?;},
-                AstNode::Init { typ, val, expr } => {self.clone().type_check_init(typ.clone(), val.clone(), expr.clone())?;},
-                AstNode::If { clause, block, else_block } => {self.clone().type_check_if(clause.clone(), block.clone(), else_block.clone())?;},
-                AstNode::For { val, from, to, block } => {self.clone().type_check_for(val.clone(), from.clone(), to.clone(), block.clone())?;},
-                AstNode::While { clause, block } => {self.clone().type_check_while(clause.clone(), block.clone())?;},
+                AstNode::Command { name, args } => {
+                    if let Some(err) = self.clone().type_check_command(name.clone(), args.clone()) {
+                        return Some(err);
+                    }
+                },
+                AstNode::Init { typ, val, expr } => {
+                     match self.clone().type_check_init(typ.clone(), val.clone(), expr.clone()) {
+                        Err(err) => return Some(err),
+                        Ok(tupl) => {
+                            self.variables.insert(val.clone(), tupl);
+                        }
+                    }
+                },
+                AstNode::If { clause, block, else_block } => {
+                    if let Some(err) = self.clone().type_check_if(clause.clone(), block.clone(), else_block.clone()) {
+                        return Some(err);
+                    }
+                },
+                AstNode::For { val, from, to, block } => {
+                    if let Some(err) = self.clone().type_check_for(val.clone(), from.clone(), to.clone(), block.clone()) {
+                        return Some(err);
+                    }
+                },
+                AstNode::While { clause, block } => {
+                    if let Some(err) = self.clone().type_check_while(clause.clone(), block.clone()) {
+                        return Some(err);
+                    }
+                }
             }
         }
         None
@@ -56,30 +80,32 @@ impl Program {
         None
     }
 
-    fn type_check_init(&mut self, new_type_def : Option<BaseType>, val : String, expr : Expression) -> Option<Error>{
+    fn type_check_init(&self, new_type_def : Option<BaseType>, val : String, expr : Expression) -> Result<(BaseType, Expression), Error>{
         if let Some((old_type, _)) = self.variables.get(&val) {
             if new_type_def.is_some() {
-                return Some(Error::LogicError { message: format!("Variable {} is re-defined!", val).into() }); 
+                return Err(Error::LogicError { message: format!("Variable {} is re-defined!", val).into() }); 
             }
             match  self.clone().type_check_expr(&expr) {
-                Err(error) => return Some(error),
+                Err(error) => return Err(error),
                 Ok(new_type) => {
-                    self.variables.insert(val, (new_type, expr));
+                    if new_type != *old_type {
+                        return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", new_type, val, old_type).into() }); 
+                    }
+                    return Ok((new_type, expr));
                 }
             }
-            None
         } else if new_type_def.is_none() {
-            Some(Error::LogicError { message: format!("Type of variable {} is not defined", val).into() })
+            return Err(Error::LogicError { message: format!("Type of variable {} is not defined", val).into() })
         } else {
             match self.clone().type_check_expr(&expr) {
-                Err(error) => return Some(error),
+                Err(error) => return Err(error),
                 Ok(new_type) => {
                     if new_type != new_type_def.unwrap() {
-                        return Some(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", new_type, val, new_type_def.unwrap()).into() }); 
+                        return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", new_type, val, new_type_def.unwrap()).into() }); 
                     }
+                    Ok((new_type, expr))
                 }
             }
-            None
         }
     }
 
@@ -92,11 +118,15 @@ impl Program {
                 }
                 let mut if_prog = self.clone();
                 if_prog.lines = block;
-                let _  = if_prog.type_check()?;
+                if let Some(err) = if_prog.type_check() {
+                    return Some(err);
+                }
                 if let Some(else_lines) = else_block {
                     let mut else_prog = self.clone();
                     else_prog.lines = else_lines;
-                    let _  = else_prog.type_check()?;
+                    if let Some(err) = else_prog.type_check() {
+                        return Some(err);
+                    }
                 }
             }
         }
@@ -117,7 +147,9 @@ impl Program {
                         let mut for_prog = self.clone();
                         for_prog.lines = block;
                         for_prog.variables.insert(val, (BaseType::Int, Expression::Value(from)));
-                        _ = for_prog.type_check()?;
+                        if let Some(err) = for_prog.type_check() {
+                            return Some(err);
+                        }
                     }
                 }
             }
@@ -134,7 +166,9 @@ impl Program {
                 }
                 let mut while_prog = self.clone();
                 while_prog.lines = block;
-                let _  = while_prog.type_check()?;
+                if let Some(err) = while_prog.type_check() {
+                    return Some(err);
+                }
             }
         }
     
@@ -150,7 +184,7 @@ impl Program {
             Expression::Unary(op, inner) => {
                 match op {
                     UnaryOperator::UnaryMinus => {
-                        let inner_type =  self.clone().type_check_expr(&*inner)?;
+                        let inner_type = self.clone().type_check_expr(&*inner)?;
                         if inner_type == BaseType::Int {Ok(BaseType::Int)} else 
                         if inner_type == BaseType::Float {Ok(BaseType::Float)} else 
                         {Err(Error::TypeError { message: format!("Type mismatch in expression: {:?}", expr).into() })}
