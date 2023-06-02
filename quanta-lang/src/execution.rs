@@ -33,11 +33,16 @@ impl Execution {
                 if let BaseValue::Int(x) = vals[0] {
                     if let BaseValue::Int(y) = vals[1] {
                         if let BaseValue::Int(r) = vals[2] {
+                            for i in x-r-2..x+r+2 {
+                                for j in y-r-2..y+r+2 {
+                                    if (i - x) * (i - x) + (j - y) * (j - y) < (r+2) * (r+2) {
+                                        self.canvas.setPixel(i, j, self.lineColor.clone());
+                                    }
+                                }
+                            }
                             for i in x-r..x+r {
                                 for j in y-r..y+r {
-                                    if (i - x) * (i - x) + (j - y) * (j - y) == r * r {
-                                        self.canvas.setPixel(i, j, self.lineColor.clone());
-                                    } else if (i - x) * (i - x) + (j - y) * (j - y) < r * r {
+                                    if (i - x) * (i - x) + (j - y) * (j - y) < r * r {
                                         self.canvas.setPixel(i, j, self.figureColor.clone());
                                     }
                                 }
@@ -68,7 +73,7 @@ impl Execution {
                                 }
                                 for x3 in x1..x2 {
                                     for y3 in y1..y2 {
-                                        if (x3 as f32 - x1 as f32) / (x2 as f32 - x1 as f32) == (y3 as f32 - y1 as f32) / (y2 as f32 - y1 as f32) {
+                                        if ((x3 as f32 - x1 as f32) / (x2 as f32 - x1 as f32) - (y3 as f32 - y1 as f32) / (y2 as f32 - y1 as f32)).abs() > 2.0 {
                                             self.canvas.setPixel(x3, y3, self.lineColor.clone());
                                         }
                                     }
@@ -86,13 +91,15 @@ impl Execution {
                     if let BaseValue::Int(y1) = vals[1] {
                         if let BaseValue::Int(x2) = vals[2] {
                             if let BaseValue::Int(y2) = vals[3] {
+                                for x3 in x1-2..x2+2 {
+                                    for y3 in y1-2..y2+2 {
+                                        self.canvas.setPixel(x3, y3, self.lineColor.clone());
+                                        
+                                    }
+                                }
                                 for x3 in x1..x2 {
                                     for y3 in y1..y2 {
-                                        if (x3 == x1 || x3 == x2) && (y3 == y1 || y3 == y2) {
-                                            self.canvas.setPixel(x3, y3, self.lineColor.clone());
-                                        } else {
-                                            self.canvas.setPixel(x3, y3, self.figureColor.clone());
-                                        }
+                                        self.canvas.setPixel(x3, y3, self.figureColor.clone());
                                     }
                                 }
                                 return None;

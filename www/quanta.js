@@ -17,10 +17,16 @@ export function check_good_text(text) {
     console.log("Compile code: " + text);
     let message = compile_code(text);
     let parts = message.split('\n');
+    console.log("mu nans: " + parts[2])
+    let nums = parts[2].split('|')
+    console.log("nums: " + nums)
+    let canvas = []
+    while(nums.length) canvas.push(nums.splice(0,600));
+    console.log("canvas " + canvas)
     let my_responce = {
       error_code: parseInt(parts[0]),
       error_message : parts[1],
-      field : parts[2]
+      field : canvas
     }
     console.log(my_responce);
     console.log("Peace!");

@@ -13,7 +13,7 @@ pub struct Canvas {
 impl Default for Canvas {
     fn default() -> Canvas {
         let mut vec = Vec::new();
-        vec.resize(600 * 420, 0);
+        vec.resize(600 * 420, 256*256*256-1);
         Canvas { width: 600, height: 420, pixels: vec }
     } 
 }
@@ -37,9 +37,9 @@ impl Canvas {
 impl fmt::Display for Canvas {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for line in self.pixels.as_slice().chunks(self.width as usize) {
-           // for &pixel in line {
-                write!(f, "{}", line[0] as usize)?;
-            //}
+            for &pixel in line {
+                write!(f, "{}|", pixel as usize)?;
+            }
         }
         Ok(())
     }
