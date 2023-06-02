@@ -17,7 +17,6 @@ pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstBlock, Error> {
     assert!(eofRule.as_rule() == Rule::EOI);
 
     let block = build_ast_from_block(blockRule.into_inner());
-    println!("{:?}", block.as_ref().unwrap());
     block
 }
 
@@ -51,7 +50,7 @@ fn build_ast_from_command(command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
     return Ok(AstNode::Command { 
         name: build_ast_from_ident(iter.next().unwrap())?,
-        args: build_ast_from_arglist(iter).unwrap()
+        args: build_ast_from_arglist(iter)?
     });
 }
 
@@ -62,7 +61,7 @@ fn build_ast_from_ident(ident: Pair<Rule>) -> Result<String, Error> {
 fn build_ast_from_arglist(mut args: Pairs<Rule>) -> Result<Vec<Expression>, Error> {
     let mut expressions = vec![];
     for pair in args {
-        expressions.push(build_ast_from_expression(pair).unwrap());
+        expressions.push(build_ast_from_expression(pair)?);
     }
     Ok(expressions)
 }
@@ -199,12 +198,14 @@ fn build_ast_from_value(val: Pair<Rule>) -> Result<BaseValue, Error> {
 
 fn build_ast_from_color(val: Pair<Rule>) -> Result<BaseValue, Error> {
     match val.as_str() {
-        "Color::Red" => Ok(BaseValue::Color(255, 0, 0)),
-        "Color::Green" => Ok(BaseValue::Color(0, 255, 0)),
-        "Color::Blue" => Ok(BaseValue::Color(0, 0, 255)),
-        "Color::Yellow" => Ok(BaseValue::Color(255, 255, 0)),
-        "Color::Pink" => Ok(BaseValue::Color(255, 0, 0)),
-        "Color::Cyan" => Ok(BaseValue::Color(255, 0, 0)),
+        "Color::Red" => Ok(BaseValue::Color(233,35,49)),
+        "Color::Green" => Ok(BaseValue::Color(126,183,134)),
+        "Color::Blue" => Ok(BaseValue::Color(46,115,230)),
+        "Color::Yellow" => Ok(BaseValue::Color(253,226,93)),
+        "Color::Pink" => Ok(BaseValue::Color(251,154,181)),
+        "Color::Cyan" => Ok(BaseValue::Color(59,168,231)),
+        "Color::Black" => Ok(BaseValue::Color(0, 0, 0)),
+        "Color::White" => Ok(BaseValue::Color(255, 255, 255)),
         _ => Err(Error::ParseError { message: format!("Unknown color: {}", val.as_str()).into() })
     }
 }

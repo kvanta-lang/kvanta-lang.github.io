@@ -1,6 +1,6 @@
 setLineColor(Color::Blue);
-setFigureColor(Color::Yellow);
-circle(320, 240, 100);
+setFigureColor(Color::Yellw);
+circle(320, 240, 10000);
 setFigureColor(Color::Red);
 int i = 0;
 for i in (1..5) {

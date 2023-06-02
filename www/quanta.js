@@ -21,7 +21,7 @@ export function check_good_text(text) {
     let nums = parts[2].split('|')
     console.log("nums: " + nums)
     let canvas = []
-    while(nums.length) canvas.push(nums.splice(0,600));
+    while(nums.length) canvas.push(nums.splice(0,420));
     console.log("canvas " + canvas)
     let my_responce = {
       error_code: parseInt(parts[0]),

@@ -24,12 +24,14 @@ impl Canvas {
     }
 
     pub fn setPixel(&mut self, x : i32, y : i32, c : BaseValue) {
-        if let BaseValue::Color(r, g, b) = c {
-            let val:i32 = (r as i32) * 256 * 256 + (g as i32) * 256 + (b as i32);
-            self.pixels[(y as usize) * self.width + (x as usize)] = val;
-            return;
+        if x >= 0 && y >= 0 && ((x as usize) < self.width) && ((y as usize) < self.height) {
+            if let BaseValue::Color(r, g, b) = c {
+                let val:i32 = (r as i32) * 256 * 256 + (g as i32) * 256 + (b as i32);
+                self.pixels[(x as usize) * self.height + (y as usize)] = val;
+                return;
+            }
+            panic!("Not color in setPixel!");
         }
-        panic!("Not color in setPixel!");
     }
 }
 

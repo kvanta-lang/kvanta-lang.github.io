@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, cmp::{max, min}};
 
 use quanta_parser::{ast::{AstBlock, BaseValue, BaseType, Expression, Operator, UnaryOperator, AstNode}, error::Error};
 
@@ -33,15 +33,21 @@ impl Execution {
                 if let BaseValue::Int(x) = vals[0] {
                     if let BaseValue::Int(y) = vals[1] {
                         if let BaseValue::Int(r) = vals[2] {
-                            for i in x-r-2..x+r+2 {
-                                for j in y-r-2..y+r+2 {
+                            let x_start = max(0, x-r);
+                            let x_finish = min(600, x + r);
+                            let y_start = max(0, y - r);
+                            let y_finish = min(420, y + r);
+                            let width = 2;
+                            for i in x_start-width..x_finish+width {
+                                for j in y_start-width..y_finish+width {
                                     if (i - x) * (i - x) + (j - y) * (j - y) < (r+2) * (r+2) {
                                         self.canvas.setPixel(i, j, self.lineColor.clone());
                                     }
+                                    
                                 }
                             }
-                            for i in x-r..x+r {
-                                for j in y-r..y+r {
+                            for i in x_start..x_finish {
+                                for j in y_start..y_finish {
                                     if (i - x) * (i - x) + (j - y) * (j - y) < r * r {
                                         self.canvas.setPixel(i, j, self.figureColor.clone());
                                     }
@@ -91,14 +97,19 @@ impl Execution {
                     if let BaseValue::Int(y1) = vals[1] {
                         if let BaseValue::Int(x2) = vals[2] {
                             if let BaseValue::Int(y2) = vals[3] {
-                                for x3 in x1-2..x2+2 {
-                                    for y3 in y1-2..y2+2 {
+                                let x_start = max(0, min(x1, x2));
+                                let x_finish = min(600, max(x1, x2));
+                                let y_start = max(0, min(y1, y2));
+                                let y_finish = min(420, max(y1, y2));
+                                let width = 1;
+                                for x3 in x_start-width..x_finish+width {
+                                    for y3 in y_start-width..y_finish+width {
                                         self.canvas.setPixel(x3, y3, self.lineColor.clone());
                                         
                                     }
                                 }
-                                for x3 in x1..x2 {
-                                    for y3 in y1..y2 {
+                                for x3 in x_start..x_finish {
+                                    for y3 in y_start..y_finish {
                                         self.canvas.setPixel(x3, y3, self.figureColor.clone());
                                     }
                                 }
@@ -147,8 +158,8 @@ impl Execution {
             lines : prog.lines.clone(),
             variables : HashMap::new(),
             canvas: Canvas::default(),
-            figureColor: BaseValue::Color(0, 0, 0),
-            lineColor: BaseValue::Color(255, 255, 255),
+            figureColor: BaseValue::Color(255, 255, 255),
+            lineColor: BaseValue::Color(0, 0, 0),
         }
     }
 
