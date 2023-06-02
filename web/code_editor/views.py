@@ -24,12 +24,23 @@ def program_code(request, program_code_id):
     return render(
         request,
         "index.html",
-        {"program_code": json.dumps(code.code), "program_code_id": program_code_id},
+        {
+            "program_code": json.dumps(code.code),
+            "program_code_id": program_code_id,
+            "program_code_title": code.title,
+        }
     )
 
 
 def update_code(request, program_code_id):
     code = ProgramCode.objects.get(id=program_code_id)
     code.code = request.POST.get("code")
+    code.save()
+    return HttpResponse("Ok")
+
+
+def update_title(request, program_code_id):
+    code = ProgramCode.objects.get(id=program_code_id)
+    code.title = request.POST.get("title")
     code.save()
     return HttpResponseRedirect(reverse_lazy("code_editor:program_code", args=[code.id]))

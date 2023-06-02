@@ -50,20 +50,22 @@ async function init_code_editor(field_checker) {
 
   function run_code() {
     console.log("Running code...")
-    let text = editor.state.doc.toString().trim();
+    let text = editor.state.doc.toString();
     let canvas = document.getElementById("drawing");
     const ctx = canvas.getContext("2d");
-    let canvas_state = field_checker(text).field;
+    let check_result = field_checker(text);
+    let error_code = check_result.error_code;
+    if (error_code != 0) {
+      alert("Error code: " + error_code + "\n" + "Error message: " + check_result.error_message);
+    }
+    let canvas_state = check_result.field;
+    console.log(canvas_state.length + " " + canvas_state[0].length)
     for (var i = 0; i < canvas_state.length; i++) {
       for (var j = 0; j < canvas_state[i].length; j++) {
         let r  = canvas_state[i][j] >> 16 & 255;
         let g  = canvas_state[i][j] >> 8 & 255;
-        let b  = canvas_state[i][j] & 255; 
-        if (i === 10 && j === 10 ) {
-          ctx.fillStyle = "rgba(0,0,0,1)";
-        } else {
+        let b  = canvas_state[i][j] & 255;
         ctx.fillStyle = "rgba("+r+","+g+","+b+",1)";
-        }
         ctx.fillRect( i, j, 1, 1);
       }
     }
