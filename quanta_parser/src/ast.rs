@@ -1,5 +1,5 @@
 pub mod builder;
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BaseType {
     Int,
     Bool,
@@ -46,6 +46,14 @@ pub enum Operator {
     Mod
 }
 
+pub fn is_arith(op : Operator) -> bool {
+    op == Operator::Plus  ||
+    op == Operator::Minus || 
+    op == Operator::Mult  ||
+    op == Operator::Div   ||
+    op == Operator::Mod
+}
+
 fn prec(op : Operator) -> i32 {
     if op == Operator::AND || op == Operator::OR {
         return 10;
@@ -68,7 +76,7 @@ pub enum Expression {
     Unary(UnaryOperator, Box<Expression>),
     Binary(Operator, Box<Expression>, Box<Expression>)
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AstNode {
     Command { name: String, args: Vec<Expression> },
     Init    { typ: Option<BaseType>, val : String, expr: Expression },
@@ -76,7 +84,7 @@ pub enum AstNode {
     While   { clause: Expression, block: AstBlock},
     If      { clause: Expression, block: AstBlock, else_block: Option<AstBlock>}
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AstBlock {
-    pub(crate) nodes : Vec<AstNode>
+    pub nodes : Vec<AstNode>
 }

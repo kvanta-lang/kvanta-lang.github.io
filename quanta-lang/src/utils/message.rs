@@ -4,7 +4,7 @@ use quanta_parser::error::Error;
 
 #[wasm_bindgen]
 pub struct Message {
-    error_code: u32,
+    pub error_code: u32,
     error_message: String,
     canvas : Canvas
 }
