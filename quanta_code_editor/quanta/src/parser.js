@@ -27,6 +27,6 @@ export const parser = LRParser.deserialize({
   topRules: {"Script":[0,5],"SingleExpression":[1,280],"SingleClassItem":[2,281]},
   dialects: {jsx: 12842, ts: 12844},
   dynamicPrecedences: {"76":1,"78":1,"163":1,"191":1},
-  specialized: [{term: 326, get: value => spec_identifier[value] || -1},{term: 342, get: value => spec_word[value] || -1},{term: 67, get: value => spec_LessThan[value] || -1}],
+  specialized: [{term: 326, get: (value) => spec_identifier[value] || -1},{term: 342, get: (value) => spec_word[value] || -1},{term: 67, get: (value) => spec_LessThan[value] || -1}],
   tokenPrec: 12868
 })
