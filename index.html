@@ -1,57 +1,46 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">       
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-        <script type="module" src="/www/quanta.js"></script>
-        <script type="module">
-            import { init_code_editor } from "./quanta_code_editor/editor.bundle.js";
-            import init from './quanta-lang/pkg/quanta_lang.js'
-            await init(); 
-            import {check_good_text} from "./www/quanta.js"
-
-            await init_code_editor(check_good_text);
-        </script>
-        <style>
-            #drawing {
-                border: 1px solid #ddd;
-            }
-            #center {
-                margin: 0 auto;
-                width: 85%;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="center">
-            <h3 class="mt-4">Quanta</h2>
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <h3 class="mt-1">Code editor</h3>
-                    <div id="code"></div>
-                    <div class="col-md-6">
-                        <button class="btn btn-primary mt-3" id="runButton">Run</button>
-                        <button class="btn btn-primary mt-3" id="saveButton">Save code</button>
-                    </div>
-                    <br>
-                    <br>
-                    
-                </div>
-
-                <div class="col-md-6">
-                    <h3 class="mt-1">Drawing area</h3>
-                    <canvas id="drawing" width="600" height="420"></canvas>
-                    <button class="btn btn-primary mt-3" id="saveImageButton">Save image</button>
-                </div>
-            </div>
-            <h3 for="customFile">Upload code</h3>
-            <input type="file" class="form-control" id="fileWithCode" />
-            <br><br>
-
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quanta – Mini IDE</title>
+  <style>
+    /* same styles you have now, but trimmed */
+    html,body{height:100%;margin:0} body{font-family:system-ui,Inter,Segoe UI,Roboto,Arial}
+    .app{height:100%;display:grid;grid-template-rows:auto 1fr}
+    .toolbar{display:flex;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid #e5e7eb}
+    .spacer{flex:1} button{padding:8px 14px;border-radius:999px;font-weight:600;cursor:pointer}
+    .panes{display:grid;grid-template-columns:1fr 1fr;height:100%}
+    .pane{position:relative;border-right:1px solid #e5e7eb} .pane:last-child{border-right:0}
+    .pane__header{position:absolute;top:8px;right:12px;font-size:12px;opacity:.7}
+    #editor{position:absolute;inset:0}
+    .resultWrap{position:absolute;inset:0;display:grid;grid-template-rows:1fr 160px}
+    #canvas{width:100%;height:100%;display:block;background:#0a0f1f}
+    #logs{margin:0;padding:10px 12px;background:#0b1226;color:#94a3b8;font:12px ui-monospace,Menlo,Consolas}
+    @media (max-width:900px){.panes{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="toolbar">
+      <strong>Quanta</strong>
+      <div class="spacer"></div>
+      <button id="runBtn">Run (Ctrl/Cmd+Enter)</button>
+    </div>
+    <div class="panes">
+      <section class="pane">
+        <div class="pane__header">Source</div>
+        <div id="editor"></div>
+      </section>
+      <section class="pane">
+        <div class="pane__header">Result</div>
+        <div class="resultWrap">
+          <canvas id="canvas" width="600" height="400"></canvas>
+          <pre id="logs"></pre>
         </div>
-        
-
-    </body>
+      </section>
+    </div>
+  </div>
+  <script type="module" src="./web/main.js"></script>
+</body>
 </html>
