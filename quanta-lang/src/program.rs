@@ -241,7 +241,7 @@ impl Program {
     }
 
     fn recursive_type_check_var(&self, tp: &Type, depth: usize) -> Result<Type, Error> {
-        if let Type::Array(inner_type, size) = tp {
+        if let Type::Array(inner_type, _) = tp {
             if let Some(inner) = inner_type.as_ref() {
                 if depth == 1 {
                     return Ok(inner.clone());

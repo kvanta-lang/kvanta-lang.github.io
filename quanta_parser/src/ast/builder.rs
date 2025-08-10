@@ -254,9 +254,8 @@ fn build_ast_from_expression_inner(expression: Pair<Rule>) -> Result<Expression,
 fn build_ast_from_init(command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
     let mut first = iter.next().unwrap();
-    let mut type_val : Option<Type> = None;
     if let Rule::type_name = first.as_rule() {
-        type_val = Some(build_ast_from_type(first)?);
+        let type_val = Some(build_ast_from_type(first)?);
         first = iter.next().unwrap();
         let mut assign = first.into_inner().into_iter();
         let name = build_ast_from_ident(assign.next().unwrap())?;

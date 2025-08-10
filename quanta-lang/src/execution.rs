@@ -175,7 +175,7 @@ impl Execution {
         }
     }
 
-    fn execute_init(&mut self, var: &str, expr: Expression) -> Option<Error>{
+    fn execute_init(&mut self, var: String, expr: Expression) -> Option<Error>{
         let val = self.calculate_expression(expr);
         if let Err(err) = val {
             return Some(err);
