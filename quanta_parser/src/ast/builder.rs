@@ -1,6 +1,7 @@
 use pest::iterators::{Pairs, Pair};
 use crate::{Rule, error::Error};
 
+
 use super::{AstBlock, AstNode, Expression, Operator,  BaseType, BaseValue, goes_before, UnaryOperator };
 
 pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstBlock, Error> {
@@ -206,6 +207,7 @@ fn build_ast_from_color(val: Pair<Rule>) -> Result<BaseValue, Error> {
         "Color::Cyan" => Ok(BaseValue::Color(59,168,231)),
         "Color::Black" => Ok(BaseValue::Color(0, 0, 0)),
         "Color::White" => Ok(BaseValue::Color(255, 255, 255)),
+        "Color::Random" => Ok(BaseValue::RandomColor),
         _ => Err(Error::ParseError { message: format!("Unknown color: {}", val.as_str()).into() })
     }
 }

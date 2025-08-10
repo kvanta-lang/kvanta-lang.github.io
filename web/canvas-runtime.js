@@ -1,31 +1,38 @@
 const logEl  = document.getElementById('logs');
 const canvas = document.getElementById('canvas');
 const ctx    = canvas.getContext('2d', { alpha: false });
+// FIXED SIZE: 1000x1000 logical pixels (scaled for HiDPI once)
+const CANVAS_W = 800, CANVAS_H = 800;
+const DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+canvas.width  = Math.floor(CANVAS_W * DPR);
+canvas.height = Math.floor(CANVAS_H * DPR);
+ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
 export function log(text) {
   if (typeof text !== 'string') text = String(text);
   logEl.textContent = text;
 }
 
-const DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-function resizeCanvas() {
-  const rect = canvas.getBoundingClientRect();
-  const w = Math.max(1, Math.floor(rect.width));
-  const h = Math.max(1, Math.floor(rect.height));
-  if (canvas.width !== Math.floor(w * DPR) || canvas.height !== Math.floor(h * DPR)) {
-    canvas.width = Math.floor(w * DPR);
-    canvas.height = Math.floor(h * DPR);
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  }
-}
-new ResizeObserver(resizeCanvas).observe(canvas);
-resizeCanvas();
 
-function clearCanvas(color = '#0a0f1f') {
-  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.restore();
-  ctx.save(); ctx.fillStyle = color; ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight); ctx.restore();
+
+export function clearCanvas(color = '#0a0f1f') {
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+
+  ctx.save(); ctx.fillStyle = color;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.restore();
 }
-function toPx(val, axis) { if (typeof val === 'string' && val.endsWith('%')) { const p = parseFloat(val)/100; return (axis==='x'?canvas.clientWidth:canvas.clientHeight)*p; } return +val; }
+
+function toPx(val, axis) {
+  if (typeof val === 'string' && val.endsWith('%')) {
+    const p = parseFloat(val) / 100;
+    return (axis === 'x' ? CANVAS_W : CANVAS_H) * p;
+  }
+  return +val;
+}
+
 const deg2rad = d => (d * Math.PI) / 180;
 function applyStyle(opts){ ctx.lineWidth = opts.width ?? 1; if (opts.stroke) ctx.strokeStyle = opts.stroke; if (opts.fill) ctx.fillStyle = opts.fill; }
 function parseOptions(tokens, startIdx){ 
@@ -39,12 +46,11 @@ function tokenize(line){ return line.trim().split(/\s+/).filter(Boolean); }
 function drawCircle(cx, cy, r, o){ ctx.beginPath(); ctx.arc(toPx(cx,'x'), toPx(cy,'y'), toPx(r,'x'), 0, Math.PI*2); if(o.fill) ctx.fill(); if(o.stroke||!o.fill) ctx.stroke(); }
 function drawRect(x,y,w,h,o){ const X=toPx(x,'x'),Y=toPx(y,'y'),W=toPx(w,'x'),H=toPx(h,'y'); if(o.fill) ctx.fillRect(X,Y,W-X,H-Y); if(o.stroke||!o.fill) ctx.strokeRect(X,Y,W-X,H-Y); }
 function drawLine(x1,y1,x2,y2,o){ ctx.beginPath(); ctx.moveTo(toPx(x1,'x'), toPx(y1,'y')); ctx.lineTo(toPx(x2,'x'), toPx(y2,'y')); ctx.stroke(); }
-function drawPolygon(nums,o){ console.log("Draw polygon for nums " + nums[0] + " " + nums[1]); if(nums.length<4) return; ctx.beginPath(); ctx.moveTo(toPx(nums[0],'x'), toPx(nums[1],'y')); for(let i=2;i<nums.length;i+=2) ctx.lineTo(toPx(nums[i],'x'), toPx(nums[i+1],'y')); ctx.closePath(); if(o.fill) {ctx.fill()}; if(o.stroke||!o.fill) ctx.stroke(); }
+function drawPolygon(nums,o){ if(nums.length<4) return; ctx.beginPath(); ctx.moveTo(toPx(nums[0],'x'), toPx(nums[1],'y')); for(let i=2;i<nums.length;i+=2) ctx.lineTo(toPx(nums[i],'x'), toPx(nums[i+1],'y')); ctx.closePath(); if(o.fill) {ctx.fill()}; if(o.stroke||!o.fill) ctx.stroke(); }
 function drawArc(cx,cy,r,a0,a1,ccw,o){ ctx.beginPath(); ctx.arc(toPx(cx,'x'), toPx(cy,'y'), toPx(r,'x'), deg2rad(a0), deg2rad(a1), !!ccw); if(o.fill) ctx.fill(); if(o.stroke||!o.fill) ctx.stroke(); }
 
 export function drawScript(script){
     console.log("Script " + script);
-  resizeCanvas();
   clearCanvas('#0a0f1f');
   ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
   const lines = String(script||'').split(/\r?\n/);

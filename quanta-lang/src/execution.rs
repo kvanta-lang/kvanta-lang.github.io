@@ -3,6 +3,7 @@ use std::collections::{HashMap};
 use quanta_parser::{ast::{AstBlock, BaseValue, Expression, Operator, UnaryOperator, AstNode}, error::Error};
 
 use crate::{utils::{canvas::Canvas, message::Message}, program::Program};
+use js_sys::Math;
 
 #[derive(Debug, Clone)]
 pub struct Execution {
@@ -10,11 +11,12 @@ pub struct Execution {
     pub variables : HashMap<String, BaseValue>,
     pub canvas    : Canvas,
     figure_color : String,
-    line_color : String
+    line_color : String,
+    line_width : i32,
 }
 
 fn color_to_str(r: &u8, g : &u8, b: &u8) -> String {
-    let s = format!("#{:x}{:x}{:x}", r, g, b);
+    let s = format!("#{:02x}{:02x}{:02x}", r, g, b);
     print!("Color to str: {}", &s);
     s
 }
@@ -37,7 +39,7 @@ impl Execution {
                 print!("Print circle!!!");
                 // todo return good type error
                 if let (Int(x), Int(y), Int(r)) = (&vals[0], &vals[1], &vals[2]) {
-                    self.canvas.add_command(format!("circle {} {} {} fill={} stroke={} width={}", x, y, r, self.figure_color, self.line_color, 1));
+                    self.canvas.add_command(format!("circle {} {} {} fill={} stroke={} width={}", x, y, r, self.figure_color, self.line_color, self.line_width));
                     None
                 } else {
                     Some(Error::RuntimeError { message: "Incorrect arguments for circle function!".into() })
@@ -45,7 +47,7 @@ impl Execution {
             },
             "line" => {
                 if let (Int(x1), Int(y1), Int(x2), Int(y2)) = (&vals[0], &vals[1], &vals[2], &vals[3]) {
-                    self.canvas.add_command(format!("line {} {} {} {} stroke={} width={}", x1, y1, x2, y2, self.line_color, 1));
+                    self.canvas.add_command(format!("line {} {} {} {} stroke={} width={}", x1, y1, x2, y2, self.line_color, self.line_width));
                     None
                 } else {
                     Some(Error::RuntimeError { message: "Incorrect arguments for line function!".into() })
@@ -53,15 +55,42 @@ impl Execution {
             },
             "rectangle" => {
                 if let (Int(x1), Int(y1), Int(x2), Int(y2)) = (&vals[0], &vals[1], &vals[2], &vals[3]) {
-                    self.canvas.add_command(format!("rectangle {} {} {} {} fill={} stroke={} width={}", x1, y1, x2, y2, self.figure_color, self.line_color, 1));
+                    self.canvas.add_command(format!("rectangle {} {} {} {} fill={} stroke={} width={}", x1, y1, x2, y2, self.figure_color, self.line_color, self.line_width));
                     None
                 } else {
                     Some(Error::RuntimeError { message: "Incorrect arguments for rectangle function!".into() })
                 }
             },
+            "polygon" => {
+                let mut nums = String::new();
+                for val in &vals {
+                    if let BaseValue::Int(num) = val {
+                        nums.push_str(&format!("{} ", num));
+                    } else {
+                        return Some(Error::RuntimeError { message: "Incorrect arguments for polygon function!".into() });
+                    }
+                }
+                self.canvas.add_command(format!("polygon {} fill={} stroke={} width={}", nums.trim(), self.figure_color, self.line_color, self.line_width));
+                None
+            },
+            "arc" => {
+                if let (Int(x), Int(y), Int(r), Int(start), Int(end)) = (&vals[0], &vals[1], &vals[2], &vals[3], &vals[4]) {
+                    self.canvas.add_command(format!("arc {} {} {} {} {} fill={} stroke={} width={}", x, y, r, start, end, self.figure_color, self.line_color, self.line_width));
+                    None
+                } else {
+                    Some(Error::RuntimeError { message: "Incorrect arguments for arc function!".into() })
+                }
+            },
             "setLineColor" => {
                 if let BaseValue::Color(r,g,b) = &vals[0] {
                     self.line_color = color_to_str(r, g, b);
+                    None
+                }
+                else if let BaseValue::RandomColor = &vals[0] {
+                    let r = (255.0 * Math::random()) as u8;
+                    let g = (255.0 * Math::random()) as u8;
+                    let b = (255.0 * Math::random()) as u8;
+                    self.line_color = color_to_str(&r, &g, &b);
                     None
                 }
                 else {
@@ -73,8 +102,27 @@ impl Execution {
                     self.figure_color = color_to_str(r, g, b);
                     None
                 }
+                else if let BaseValue::RandomColor = &vals[0] {
+                    let r = (255.0 * Math::random()) as u8;
+                    let g = (255.0 * Math::random()) as u8;
+                    let b = (255.0 * Math::random()) as u8;
+                    self.figure_color = color_to_str(&r, &g, &b);
+                    None
+                }
                 else {
                     Some(Error::RuntimeError { message: "Incorrect arguments for setFigureColor function!".into() })
+                }
+            },
+            "setLineWidth" => {
+                if let BaseValue::Int(width) = &vals[0] {
+                    if *width >= 0 {
+                        self.line_width = *width;
+                        None
+                    } else {
+                        Some(Error::RuntimeError { message: "Line width can't be negative!".into() })
+                    }
+                } else {
+                    Some(Error::RuntimeError { message: "Incorrect arguments for setLineWidth function!".into() })
                 }
             },
             _ => {
@@ -103,6 +151,7 @@ impl Execution {
             canvas: Canvas::default(),
             figure_color: "#FFFFFF".to_string(),
             line_color: "#000000".to_string(),
+            line_width: 1,
         }
     }
 

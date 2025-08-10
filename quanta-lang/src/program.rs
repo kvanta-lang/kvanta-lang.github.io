@@ -15,7 +15,10 @@ pub fn create_program(ast: AstBlock) -> Program {
         (String::from("line"), vec![BaseType::Int, BaseType::Int, BaseType::Int, BaseType::Int]),
         (String::from("rectangle"), vec![BaseType::Int, BaseType::Int, BaseType::Int, BaseType::Int]),
         (String::from("setLineColor"), vec![BaseType::Color]),
-        (String::from("setFigureColor"), vec![BaseType::Color])
+        (String::from("setFigureColor"), vec![BaseType::Color]),
+        (String::from("setLineWidth"), vec![BaseType::Int]),
+        (String::from("polygon"), vec![]), // at least 6 Ints for polygon
+        (String::from("arc"), vec![BaseType::Int, BaseType::Int, BaseType::Int, BaseType::Int, BaseType::Int]),
     ])}
 }
 
@@ -60,6 +63,22 @@ impl Program {
 
     fn type_check_command(&self, name : String, args : Vec<Expression>) -> Option<Error> {
         if let Some(params) = self.functions.get(&name) {
+            if name == "polygon" {
+                if args.len() < 6 || args.len() % 2 != 0 {
+                    return Some(Error::LogicError { message: format!("Wrong number of arguments for command polygon: got {}, expected at least 6 (even number) for polygon", args.len()).into() });
+                }
+                for arg in &args {
+                    match self.clone().type_check_expr(arg) {
+                        Err(error) => return Some(error),
+                        Ok(arg_type) => {
+                            if arg_type != BaseType::Int {
+                                return Some(Error::TypeError { message: format!("Wrong type of argument for command {}: got {:?}, expected Int", name, arg_type).into() });
+                            }
+                        }
+                    }
+                }
+                return None;
+            }
             if params.len() != args.len() {
                 return Some(Error::LogicError { message: format!("Wrong number of arguments for command {}: got {}, expected {}", name, args.len(), params.len()).into() });
             }
@@ -230,6 +249,7 @@ impl Program {
             BaseValue::Int(_) => Ok(BaseType::Int),
             BaseValue::Bool(_) => Ok(BaseType::Bool),
             BaseValue::Color(_, _, _) => Ok(BaseType::Color),
+            BaseValue::RandomColor => Ok(BaseType::Color),
             BaseValue::Float(_) => Ok(BaseType::Float),
         }
     }

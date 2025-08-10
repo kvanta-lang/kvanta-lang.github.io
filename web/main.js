@@ -27,6 +27,12 @@ rectangle(100, 100, 200, 200);
 
 setFigureColor(Color::Blue);
 rectangle(125, 125, 175, 175);
+
+for i in (0..10) {
+    setFigureColor(Color::Random);
+    int a = 50;
+    rectangle(0, i * a, (i+1) * a, (i+1) * a);
+}
 `;
 
 const editor = new EditorView({

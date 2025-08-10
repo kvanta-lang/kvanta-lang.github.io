@@ -12,6 +12,7 @@ pub enum BaseValue {
     Int(i32),
     Bool(bool),
     Color(u8, u8, u8),
+    RandomColor,
     Float(f32)
 }
 #[derive(Debug, Clone, Copy)]
