@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, cmp::{max, min}};
+use std::{collections::{HashMap}, cmp::{max, min}};
 
 use quanta_parser::{ast::{AstBlock, BaseValue, BaseType, Expression, Operator, UnaryOperator, AstNode}, error::Error};
 
@@ -9,13 +9,17 @@ pub struct Execution {
     pub lines: AstBlock, 
     pub variables : HashMap<String, BaseValue>,
     pub canvas    : Canvas,
-    figureColor : BaseValue,
-    lineColor : BaseValue
+    figure_color : String,
+    line_color : String
+}
+
+fn color_to_str(r: &u8, g : &u8, b: &u8) -> String {
+    let s = format!("#{:x}{:x}{:x}", r, g, b);
+    print!("Color to str: {}", &s);
+    s
 }
 
 impl Execution {
-
-    
 
     fn execute_function(&mut self, function_name: &str, args: Vec<Expression>) -> Option<Error>{
         let mut vals : Vec<BaseValue> = vec![];
@@ -27,112 +31,51 @@ impl Execution {
                 vals.push(val.unwrap());
             }
         }
+        use BaseValue::*;
         match function_name {
             "circle" => {
                 print!("Print circle!!!");
-                if let BaseValue::Int(x) = vals[0] {
-                    if let BaseValue::Int(y) = vals[1] {
-                        if let BaseValue::Int(r) = vals[2] {
-                            let x_start = max(0, x-r);
-                            let x_finish = min(600, x + r);
-                            let y_start = max(0, y - r);
-                            let y_finish = min(420, y + r);
-                            let width = 2;
-                            for i in x_start-width..x_finish+width {
-                                for j in y_start-width..y_finish+width {
-                                    if (i - x) * (i - x) + (j - y) * (j - y) < (r+2) * (r+2) {
-                                        self.canvas.setPixel(i, j, self.lineColor.clone());
-                                    }
-                                    
-                                }
-                            }
-                            for i in x_start..x_finish {
-                                for j in y_start..y_finish {
-                                    if (i - x) * (i - x) + (j - y) * (j - y) < r * r {
-                                        self.canvas.setPixel(i, j, self.figureColor.clone());
-                                    }
-                                }
-                            }
-                            return None;
-                        }
-                    }
+                // todo return good type error
+                if let (Int(x), Int(y), Int(r)) = (&vals[0], &vals[1], &vals[2]) {
+                    self.canvas.add_command(format!("circle {} {} {} fill={} stroke={} width={}", x, y, r, self.figure_color, self.line_color, 1));
+                    None
+                } else {
+                    Some(Error::RuntimeError { message: "Incorrect arguments for circle function!".into() })
                 }
-                return Some(Error::RuntimeError { message: "Incorrect arguments for circle function!".into() })
             },
             "line" => {
-                if let BaseValue::Int(x1) = vals[0] {
-                    print!("Line number {}", x1);
-                    if let BaseValue::Int(y1) = vals[1] {
-                        if let BaseValue::Int(x2) = vals[2] {
-                            if let BaseValue::Int(y2) = vals[3] {
-                                if x2 == x1 {
-                                    for i in y1 .. y2 {
-                                        self.canvas.setPixel(x1, i, self.lineColor.clone());
-                                    }
-                                    return None;
-                                }
-                                if y2 == y1 {
-                                    for i in x1 .. x2 {
-                                        self.canvas.setPixel(i, y1, self.lineColor.clone());
-                                    }
-                                    return None;
-                                }
-                                for x3 in x1..x2 {
-                                    for y3 in y1..y2 {
-                                        if ((x3 as f32 - x1 as f32) / (x2 as f32 - x1 as f32) - (y3 as f32 - y1 as f32) / (y2 as f32 - y1 as f32)).abs() > 2.0 {
-                                            self.canvas.setPixel(x3, y3, self.lineColor.clone());
-                                        }
-                                    }
-                                }
-                                return None;
-                            }
-                        }
-                    }
+                if let (Int(x1), Int(y1), Int(x2), Int(y2)) = (&vals[0], &vals[1], &vals[2], &vals[3]) {
+                    self.canvas.add_command(format!("line {} {} {} {}", x1, y1, x2, y2));
+                    None
+                } else {
+                    Some(Error::RuntimeError { message: "Incorrect arguments for line function!".into() })
                 }
-                return Some(Error::RuntimeError { message: "Incorrect arguments for line function!".into() })
             },
             "rectangle" => {
-                print!("rectangle!");
-                if let BaseValue::Int(x1) = vals[0] {
-                    if let BaseValue::Int(y1) = vals[1] {
-                        if let BaseValue::Int(x2) = vals[2] {
-                            if let BaseValue::Int(y2) = vals[3] {
-                                let x_start = max(0, min(x1, x2));
-                                let x_finish = min(600, max(x1, x2));
-                                let y_start = max(0, min(y1, y2));
-                                let y_finish = min(420, max(y1, y2));
-                                let width = 1;
-                                for x3 in x_start-width..x_finish+width {
-                                    for y3 in y_start-width..y_finish+width {
-                                        self.canvas.setPixel(x3, y3, self.lineColor.clone());
-                                        
-                                    }
-                                }
-                                for x3 in x_start..x_finish {
-                                    for y3 in y_start..y_finish {
-                                        self.canvas.setPixel(x3, y3, self.figureColor.clone());
-                                    }
-                                }
-                                return None;
-                            }
-                        }
-                    }
+                if let (Int(x1), Int(y1), Int(x2), Int(y2)) = (&vals[0], &vals[1], &vals[2], &vals[3]) {
+                    self.canvas.add_command(format!("rectangle {} {} {} {}", x1, y1, x2, y2));
+                    None
+                } else {
+                    Some(Error::RuntimeError { message: "Incorrect arguments for rectangle function!".into() })
                 }
-                return Some(Error::RuntimeError { message: "Incorrect arguments for rectangle function!".into() })
             },
             "setLineColor" => {
-                if let BaseValue::Color(r,g,b) = vals[0] {
-                    self.lineColor = vals[0].clone();
-                    return None;
+                if let BaseValue::Color(r,g,b) = &vals[0] {
+                    self.line_color = color_to_str(r, g, b);
+                    None
                 }
-                return Some(Error::RuntimeError { message: "Incorrect arguments for setLineColor function!".into() })
+                else {
+                    Some(Error::RuntimeError { message: "Incorrect arguments for setLineColor function!".into() })
+                }
             },
             "setFigureColor" => {
-                if let BaseValue::Color(r,g,b) = vals[0] {
-                    self.figureColor = vals[0].clone();
-                    return None;
+                if let BaseValue::Color(r,g,b) = &vals[0] {
+                    self.figure_color = color_to_str(r, g, b);
+                    None
                 }
-                return Some(Error::RuntimeError { message: "Incorrect arguments for setFigureColor function!".into() })
+                else {
+                    Some(Error::RuntimeError { message: "Incorrect arguments for setFigureColor function!".into() })
+                }
             },
             _ => {
                 return Some(Error::RuntimeError { message: format!("Unknown function: {}", function_name).into() })
@@ -158,8 +101,8 @@ impl Execution {
             lines : prog.lines.clone(),
             variables : HashMap::new(),
             canvas: Canvas::default(),
-            figureColor: BaseValue::Color(255, 255, 255),
-            lineColor: BaseValue::Color(0, 0, 0),
+            figure_color: "#FFFFFF".to_string(),
+            line_color: "#000000".to_string(),
         }
     }
 
@@ -263,8 +206,8 @@ impl Execution {
 
     fn calculate_expression(&self, expr: Expression) -> Result<BaseValue, Error> {
         match expr {
-            Expression::Value(baseValue) => {
-                match baseValue {
+            Expression::Value(base_value) => {
+                match base_value {
                     BaseValue::Id(var) => {
                         if let Some(val) = self.variables.get(&var) {
                             return Ok(val.clone());

@@ -5,43 +5,30 @@ use std::fmt;
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct Canvas {
-    width: usize,
-    height: usize,
-    pixels: Vec<i32>,
+    commands: Vec<String>,
 }
 
 impl Default for Canvas {
     fn default() -> Canvas {
-        let mut vec = Vec::new();
-        vec.resize(600 * 420, 256*256*256-1);
-        Canvas { width: 600, height: 420, pixels: vec }
+        Canvas { commands: Vec::new() }
     } 
 }
 
 impl Canvas {
     pub fn empty() -> Canvas {
-        Canvas { width:0, height: 0, pixels: Vec::with_capacity(0) }
+        Canvas::default()
     }
 
-    pub fn setPixel(&mut self, x : i32, y : i32, c : BaseValue) {
-        if x >= 0 && y >= 0 && ((x as usize) < self.width) && ((y as usize) < self.height) {
-            if let BaseValue::Color(r, g, b) = c {
-                let val:i32 = (r as i32) * 256 * 256 + (g as i32) * 256 + (b as i32);
-                self.pixels[(x as usize) * self.height + (y as usize)] = val;
-                return;
-            }
-            panic!("Not color in setPixel!");
-        }
+    pub fn add_command(&mut self, c : String) {
+        self.commands.push(c);
     }
 }
 
 
 impl fmt::Display for Canvas {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for line in self.pixels.as_slice().chunks(self.width as usize) {
-            for &pixel in line {
-                write!(f, "{}|", pixel as usize)?;
-            }
+        for line in &self.commands {
+            write!(f, "{}\n", line)?;
         }
         Ok(())
     }
