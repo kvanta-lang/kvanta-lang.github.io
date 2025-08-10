@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use quanta_parser::{ast::*, error::Error};
 
@@ -177,8 +177,8 @@ impl Program {
 
     fn type_check_expr(&self, expr : &Expression) -> Result<BaseType, Error> {
         match expr {
-            Expression::Value(baseValue) => {
-                let expr_type =  self.clone().type_check_baseval(baseValue)?;
+            Expression::Value(base_value) => {
+                let expr_type =  self.clone().type_check_baseval(base_value)?;
                 Ok(expr_type)
             },
             Expression::Unary(op, inner) => {

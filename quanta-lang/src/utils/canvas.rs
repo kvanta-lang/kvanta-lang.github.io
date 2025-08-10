@@ -1,4 +1,3 @@
-use quanta_parser::ast::BaseValue;
 use wasm_bindgen::prelude::*;
 use std::fmt;
 

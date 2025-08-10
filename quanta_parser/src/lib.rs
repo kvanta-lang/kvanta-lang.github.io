@@ -1,10 +1,8 @@
-use std::sync::Arc;
 
 use ast::builder::build_ast_from_doc;
-use ast::{AstBlock, AstNode, BaseValue, Expression, Type, BaseType, goes_before};
+use ast::AstBlock;
 use error::Error;
 use pest::Parser;
-use pest::iterators::{Pairs, Pair};
 use pest_derive::Parser;
 pub mod ast;
 pub mod error;
@@ -44,10 +42,11 @@ mod tests {
             .expect("Should have been able to read the file");
         assert!(contents.len() > 0);
         match parse_ast(contents.as_str()) {
-            Ok(ast) => assert!(ast.nodes.len() >= 0),
+            Ok(_ast) => {},
             Err(Error::ParseError{message}) => {print!("{}", message.to_string())}
             Err(Error::LogicError{message}) => {print!("{}", message.to_string())}
             Err(Error::TypeError{message}) => {print!("{}", message.to_string())}
+            Err(Error::RuntimeError{message}) => {print!("{}", message.to_string())}
         }
     }
 }

@@ -1,6 +1,6 @@
-use std::{collections::{HashMap}, cmp::{max, min}};
+use std::collections::{HashMap};
 
-use quanta_parser::{ast::{AstBlock, BaseValue, BaseType, Expression, Operator, UnaryOperator, AstNode}, error::Error};
+use quanta_parser::{ast::{AstBlock, BaseValue, Expression, Operator, UnaryOperator, AstNode}, error::Error};
 
 use crate::{utils::{canvas::Canvas, message::Message}, program::Program};
 

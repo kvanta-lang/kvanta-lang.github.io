@@ -8,15 +8,15 @@ pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstBlock, Error> {
     let doc = docs.into_iter().next().unwrap();
     assert!(doc.as_rule() == Rule::document);
 
-    let mut docIter = doc.into_inner().into_iter();
-    assert!(docIter.len() == 2);
-    let blockRule = docIter.next().unwrap();
-    let eofRule = docIter.next().unwrap();
+    let mut doc_iter = doc.into_inner().into_iter();
+    assert!(doc_iter.len() == 2);
+    let block_rule = doc_iter.next().unwrap();
+    let eof_rule = doc_iter.next().unwrap();
 
-    assert!(blockRule.as_rule() == Rule::block);
-    assert!(eofRule.as_rule() == Rule::EOI);
+    assert!(block_rule.as_rule() == Rule::block);
+    assert!(eof_rule.as_rule() == Rule::EOI);
 
-    let block = build_ast_from_block(blockRule.into_inner());
+    let block = build_ast_from_block(block_rule.into_inner());
     block
 }
 
@@ -58,7 +58,7 @@ fn build_ast_from_ident(ident: Pair<Rule>) -> Result<String, Error> {
     Ok(String::from(ident.as_str()))
 }
 
-fn build_ast_from_arglist(mut args: Pairs<Rule>) -> Result<Vec<Expression>, Error> {
+fn build_ast_from_arglist(args: Pairs<Rule>) -> Result<Vec<Expression>, Error> {
     let mut expressions = vec![];
     for pair in args {
         expressions.push(build_ast_from_expression(pair)?);
