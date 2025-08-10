@@ -2,7 +2,7 @@ use pest::iterators::{Pairs, Pair};
 use crate::{Rule, error::Error};
 
 
-use super::{AstBlock, AstNode, Expression, Operator,  BaseType, BaseValue, goes_before, UnaryOperator };
+use super::{AstBlock, AstNode, Expression, Operator,  BaseType, Type, BaseValue, goes_before, UnaryOperator };
 
 pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstBlock, Error> {
     assert!(docs.len() == 1);
@@ -17,8 +17,7 @@ pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstBlock, Error> {
     assert!(block_rule.as_rule() == Rule::block);
     assert!(eof_rule.as_rule() == Rule::EOI);
 
-    let block = build_ast_from_block(block_rule.into_inner());
-    block
+    build_ast_from_block(block_rule.into_inner())
 }
 
 fn build_ast_from_block(statements: Pairs<Rule>) -> Result<AstBlock, Error> {
@@ -153,9 +152,9 @@ fn build_ast_from_expression_inner(expression: Pair<Rule>) -> Result<Expression,
 fn build_ast_from_init(command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
     let mut first = iter.next().unwrap();
-    let mut type_val : Option<BaseType> = None;
+    let mut type_val : Option<Type> = None;
     if let Rule::type_name = first.as_rule() {
-        type_val = Some(build_ast_from_type(first).unwrap());
+        type_val = Some(build_ast_from_type(first)?);
         first = iter.next().unwrap();
     } 
     let mut assign = first.into_inner().into_iter();
@@ -193,6 +192,20 @@ fn build_ast_from_value(val: Pair<Rule>) -> Result<BaseValue, Error> {
         Rule::boolean => Ok(BaseValue::Bool(val.as_str() == "true")),
         Rule::color   => build_ast_from_color(val),
         Rule::ident   => Ok(BaseValue::Id(build_ast_from_ident(val).unwrap())),
+        Rule::array_literal => {
+            let mut elements = vec![];
+            for item in val.into_inner() {
+                elements.push(build_ast_from_value(item)?);
+            }
+            if elements.is_empty() {
+                return Ok(BaseValue::Array(None, elements));
+            }
+            let first_type = elements[0].get_type();
+            if elements.iter().any(|e| e.get_type() != first_type) {
+                return Err(Error::TypeError { message: "All elements in the array must be of the same type".into() });
+            }
+            Ok(BaseValue::Array(Some(first_type), elements))
+        }
         _ => unreachable!("Unexpected code 8")
     }
 }
@@ -214,18 +227,41 @@ fn build_ast_from_color(val: Pair<Rule>) -> Result<BaseValue, Error> {
 
 fn build_ast_from_while(command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
-    return Ok(AstNode::While { 
+    Ok(AstNode::While { 
         clause: build_ast_from_expression(iter.next().unwrap())?, 
         block: build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?,
     })
 }
 
-fn build_ast_from_type(type_val: Pair<Rule>) -> Result<BaseType, Error> {
+fn build_ast_from_array_type(type_val: Pairs<Rule>) -> Result<Type, Error> {
+    use Type::*;
+    let mut iter = type_val.into_iter().next().unwrap().into_inner().into_iter();
+    let inner_type = build_ast_from_type(iter.next().unwrap())?;
+    //return Ok(Array(Box::new(Some(inner_type)), 3));
+    if let BaseValue::Int(array_size) = build_ast_from_value(iter.next().unwrap())? {
+        if array_size <= 0 {
+            return Err(Error::ParseError { message: "Array size must be greater than 0".into() });
+        }
+        return Ok(Array(Box::new(Some(inner_type)), array_size as usize));
+    } else {
+        return Err(Error::ParseError { message: "Expected integer for array size".into() });
+    }
+}
+
+fn build_ast_from_type(type_val: Pair<Rule>) -> Result<Type, Error> {
+    use BaseType::*;
+    use Type::*;
+
+    if let Some(i) = type_val.clone().into_inner().into_iter().next() {
+        if i.as_rule() == Rule::array_type {
+            return build_ast_from_array_type(type_val.into_inner());
+        }
+    }
     match type_val.as_str() {
-        "int" => Ok(BaseType::Int),
-        "bool" => Ok(BaseType::Bool),
-        "color" => Ok(BaseType::Color),
-        "float" => Ok(BaseType::Float),
-        _ => unreachable!("Unexpected code 9")
+        "int" => Ok(Primitive(Int)),
+        "bool" => Ok(Primitive(Bool)),
+        "color" => Ok(Primitive(Color)),
+        "float" => Ok(Primitive(Float)),
+        t => Err(Error::ParseError { message: format!("Unknown type 22: {}", t).into() })
     }
 }

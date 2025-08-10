@@ -1,10 +1,12 @@
+
 pub mod builder;
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BaseType {
     Int,
     Bool,
     Color,
-    Float
+    Float,
+    ErrorType(String), // For error handling, not a real type
 }
 #[derive(Debug, Clone)]
 pub enum BaseValue {
@@ -13,13 +15,37 @@ pub enum BaseValue {
     Bool(bool),
     Color(u8, u8, u8),
     RandomColor,
-    Float(f32)
+    Float(f32),
+    Array(Option<Type>, Vec<BaseValue>), // Array of BaseValues
 }
-#[derive(Debug, Clone, Copy)]
+
+
+
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Primitive(BaseType),
-    ArrayOneD(BaseType),
-    ArrayTwoD(BaseType)
+    Array(Box<Option<Type>>, usize), // Array of a certain type with a fixed size
+}
+
+impl BaseValue {
+    pub fn get_type(&self) -> Type {
+        match self {
+            BaseValue::Id(_) => Type::Primitive(BaseType::Int), // Default type for identifiers
+            BaseValue::Int(_) => Type::Primitive(BaseType::Int),
+            BaseValue::Bool(_) => Type::Primitive(BaseType::Bool),
+            BaseValue::Color(_, _, _) => Type::Primitive(BaseType::Color),
+            BaseValue::RandomColor => Type::Primitive(BaseType::Color),
+            BaseValue::Float(_) => Type::Primitive(BaseType::Float),
+            BaseValue::Array(inner_type, elems) => {
+                if elems.is_empty() || inner_type.is_none() {
+                    return Type::Array(Box::new(None), 0);
+                }
+                let inner = inner_type.as_ref().unwrap().clone();
+                Type::Array(Box::new(Some(inner)), elems.len())
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -80,7 +106,7 @@ pub enum Expression {
 #[derive(Debug, Clone)]
 pub enum AstNode {
     Command { name: String, args: Vec<Expression> },
-    Init    { typ: Option<BaseType>, val : String, expr: Expression },
+    Init    { typ: Option<Type>, val : String, expr: Expression },
     For     { val: String, from: BaseValue, to: BaseValue, block: AstBlock },
     While   { clause: Expression, block: AstBlock},
     If      { clause: Expression, block: AstBlock, else_block: Option<AstBlock>}

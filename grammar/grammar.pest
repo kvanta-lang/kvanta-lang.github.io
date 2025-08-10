@@ -19,10 +19,9 @@ range           =  { "(" ~ numVar ~ ".." ~ numVar ~ ")" }
 numVar          = _{ integer | ident }
 while_statement =  { "while" ~ "(" ~ expression ~ ")" ~ bracket_block }
 
-type_name      =  { array_type2d | array_type1d | primitive_type }
+type_name      =  { array_type | primitive_type }
 primitive_type = _{ "bool" | "int" | "color" | "float" }
-array_type2d   = _{ (array_type1d | primitive_type) ~ "[" ~ numVar ~ "]" }
-array_type1d   = _{ primitive_type ~ "[" ~ numVar ~ "]" }
+array_type   = { "array<" ~ type_name ~ "," ~ integer ~ ">" }
 
 number     = { decimal | integer }
 expression = {
@@ -35,7 +34,7 @@ monadicExpr  = { operator ~ expression }
 dyadicExpr   = { (monadicExpr | term) ~ operator ~ expression }
 parenth_expr = { "(" ~ expression ~ ")" }
 
-term = _{ decimal | integer | color | boolean | ident | parenth_expr }
+term = _{ decimal | integer | color | boolean | ident | array_literal | parenth_expr }
 
 operator = {
   
@@ -53,6 +52,7 @@ operator = {
   | "&&"
   | "||"
 }
+array_literal = { "{" ~ (term ~ ("," ~ term)*)?  ~ "}" }
 boolean = { "true" | "false" }
 color = @{"Color::" ~ (ident | function_call)}
 integer = @{ "-"? ~ ASCII_DIGIT+ }
