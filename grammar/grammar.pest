@@ -10,13 +10,13 @@ command        =  { function_call ~ ";" }
 function_call  = _{ ident ~ "(" ~ params? ~ ")" }
 params         = _{ expression ~ ("," ~ expression)* }
 init_statement =  { type_name? ~ initialization  ~ ";" }
-initialization =  { ident ~ "=" ~ expression }
+initialization =  { noun ~ "=" ~ expression }
 
 if_statement    =  { "if" ~ "(" ~ expression ~ ")" ~ bracket_block ~ else_block?}
 else_block      = _{ "else" ~ bracket_block }
 for_statement   =  { "for" ~ ident ~ "in" ~ range ~ bracket_block }
 range           =  { "(" ~ numVar ~ ".." ~ numVar ~ ")" }
-numVar          = _{ integer | ident }
+numVar          = _{ integer | noun }
 while_statement =  { "while" ~ "(" ~ expression ~ ")" ~ bracket_block }
 
 type_name      =  { array_type | primitive_type }
@@ -34,7 +34,9 @@ monadicExpr  = { operator ~ expression }
 dyadicExpr   = { (monadicExpr | term) ~ operator ~ expression }
 parenth_expr = { "(" ~ expression ~ ")" }
 
-term = _{ decimal | integer | color | boolean | ident | array_literal | parenth_expr }
+box = {"[" ~ expression ~ "]" }
+noun = {ident ~ box* }
+term = _{ decimal | integer | color | boolean | noun | array_literal | parenth_expr }
 
 operator = {
   
@@ -54,7 +56,7 @@ operator = {
 }
 array_literal = { "{" ~ (term ~ ("," ~ term)*)?  ~ "}" }
 boolean = { "true" | "false" }
-color = @{"Color::" ~ (ident | function_call)}
+color = @{"Color::" ~ ident}
 integer = @{ "-"? ~ ASCII_DIGIT+ }
 decimal = @{ "-"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* }
 ident   = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }

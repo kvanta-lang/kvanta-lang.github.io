@@ -1,5 +1,5 @@
 use pest::iterators::{Pairs, Pair};
-use crate::{Rule, error::Error};
+use crate::{ast::{SimpleExpression, SimpleValue, VariableCall}, error::Error, Rule};
 
 
 use super::{AstBlock, AstNode, Expression, Operator,  BaseType, Type, BaseValue, goes_before, UnaryOperator };
@@ -55,7 +55,25 @@ fn build_ast_from_command(command: Pairs<Rule>) -> Result<AstNode, Error> {
 }
 
 fn build_ast_from_ident(ident: Pair<Rule>) -> Result<String, Error> {
-    Ok(String::from(ident.as_str()))
+    Ok(String::from(ident.as_str().trim()))
+}
+
+fn build_ast_from_noun(ident: Pair<Rule>) -> Result<VariableCall, Error> {
+    if ident.as_rule() == Rule::noun {
+        let mut ident = ident.into_inner().into_iter();
+        if let Some(name) = ident.next() {
+            if ident.clone().count() > 0 {
+                let mut args = vec![];
+                for arg in ident {
+                    args.push(build_ast_for_simple_expression(arg.into_inner().into_iter().next().unwrap())?);
+                }
+                return Ok(VariableCall::ArrayCall(String::from(name.as_str()), args));
+            }
+            return Ok(VariableCall::Name(String::from(name.as_str())));
+        }
+        return Ok(VariableCall::Name(String::from(ident.as_str())));
+    }
+    Err(Error::ParseError { message: format!("Expected identifier, found: {}", ident.as_str()).into() })
 }
 
 fn build_ast_from_arglist(args: Pairs<Rule>) -> Result<Vec<Expression>, Error> {
@@ -89,6 +107,90 @@ fn improve_expr(expr : Expression) -> (Expression, bool) {
             (Expression::Binary(op, new_left.into(), right), false)
         },
     }
+}
+
+// todo remove separation for simple expressions
+fn improve_simple_expr(expr : SimpleExpression) -> (SimpleExpression, bool) {
+    match expr {
+        SimpleExpression::Value(_) => (expr, false),
+        SimpleExpression::Unary(_, _) => (expr, false),
+        SimpleExpression::Binary(op, left, right) => {
+            let mut new_left : SimpleExpression = *left;
+            if let SimpleExpression::Unary(UnaryOperator::Parentheses, _) = new_left {
+                (new_left, _) = improve_simple_expr(new_left);
+            }
+            if let SimpleExpression::Binary(r_op, r_left, r_right) = *right.clone() {
+                if goes_before(op, r_op) {
+                    return improve_simple_expr(SimpleExpression::Binary(r_op, SimpleExpression::Binary(op, new_left.into(), r_left).into(), r_right))
+                } else {
+                    let (new_right, redo) = improve_simple_expr(*right);
+                    if redo {
+                        return improve_simple_expr(SimpleExpression::Binary(op, new_left.into(), new_right.into()));
+                    }
+                    return (SimpleExpression::Binary(op, new_left.into(), new_right.into()), false)
+                }
+            }
+            (SimpleExpression::Binary(op, new_left.into(), right), false)
+        },
+    }
+}
+
+fn build_ast_for_simple_expression(expression : Pair<Rule>) -> Result<SimpleExpression, Error> {
+    let expr = build_ast_from_simple_expression_inner(expression)?;
+    let (res, _) = improve_simple_expr(expr);
+    Ok(res)
+}
+
+fn build_ast_from_simple_expression_inner(expression: Pair<Rule>) -> Result<SimpleExpression, Error> {
+    match expression.as_rule() {
+        Rule::monadicExpr => {
+            let mut iter = expression.into_inner().into_iter();
+            let operator = iter.next().unwrap();
+            let right = build_ast_from_simple_expression_inner(iter.next().unwrap())?;
+            if operator.as_str() == "-" {
+                Ok(SimpleExpression::Unary(super::UnaryOperator::UnaryMinus, right.into()))
+            } else {
+                Err(Error::ParseError { message: format!("Unknown unary operator {}", operator.as_str()).into() })
+            }
+        },
+        Rule::dyadicExpr => {
+            let mut iter = expression.into_inner().into_iter();
+            let left = build_ast_from_simple_expression_inner(iter.next().unwrap())?;
+            let operator = iter.next().unwrap();
+            let right = build_ast_from_simple_expression_inner(iter.next().unwrap())?;
+            match operator.as_str() {
+                "+" => Ok(SimpleExpression::Binary(Operator::Plus, left.into(), right.into())),
+                "-" => Ok(SimpleExpression::Binary(Operator::Minus, left.into(), right.into())),
+                "*" => Ok(SimpleExpression::Binary(Operator::Mult, left.into(), right.into())),
+                "/" => Ok(SimpleExpression::Binary(Operator::Div, left.into(), right.into())),
+                "%" => Ok(SimpleExpression::Binary(Operator::Mod, left.into(), right.into())),
+
+                ">"   => Ok(SimpleExpression::Binary(Operator::GT, left.into(), right.into())),
+                "<"   => Ok(SimpleExpression::Binary(Operator::LT, left.into(), right.into())),
+                ">="  => Ok(SimpleExpression::Binary(Operator::GQ, left.into(), right.into())),
+                "<="  => Ok(SimpleExpression::Binary(Operator::LQ, left.into(), right.into())),
+                "=="  => Ok(SimpleExpression::Binary(Operator::EQ, left.into(), right.into())),
+                "!="  => Ok(SimpleExpression::Binary(Operator::NQ, left.into(), right.into())),
+
+                "&&"  => Ok(SimpleExpression::Binary(Operator::AND, left.into(), right.into())),
+                "||"  => Ok(SimpleExpression::Binary(Operator::OR, left.into(), right.into())),
+
+                op => Err(Error::ParseError { message: format!("Unknown operator {}", op).into() })
+            }
+        },
+        Rule::expression => {
+            return build_ast_from_simple_expression_inner(expression.into_inner().into_iter().next().unwrap())
+        },
+        Rule::parenth_expr => {
+            let inner_expr = build_ast_from_simple_expression_inner(expression.into_inner().into_iter().next().unwrap().into_inner().into_iter().next().unwrap())?;
+            Ok(SimpleExpression::Unary(super::UnaryOperator::Parentheses, inner_expr.into()))
+        },
+        _ => {
+            return Ok(SimpleExpression::Value(build_ast_from_simple_value(expression)?))
+        }
+    }
+
+
 }
 
 fn build_ast_from_expression(expression: Pair<Rule>) -> Result<Expression, Error> {
@@ -156,12 +258,16 @@ fn build_ast_from_init(command: Pairs<Rule>) -> Result<AstNode, Error> {
     if let Rule::type_name = first.as_rule() {
         type_val = Some(build_ast_from_type(first)?);
         first = iter.next().unwrap();
+        let mut assign = first.into_inner().into_iter();
+        let name = build_ast_from_ident(assign.next().unwrap())?;
+        let expr = build_ast_from_expression(assign.next().unwrap())?;
+        return Ok(AstNode::Init { typ: type_val.unwrap(), val: name, expr });
     } 
     let mut assign = first.into_inner().into_iter();
-    let name = build_ast_from_ident(assign.next().unwrap())?;
+    let name = build_ast_from_noun(assign.next().unwrap())?;
     let expr = build_ast_from_expression(assign.next().unwrap())?;
 
-    Ok(AstNode::Init { typ: type_val, val: name, expr })
+    Ok(AstNode::SetVal { val: name, expr })
 }
 
 fn build_ast_from_if(command: Pairs<Rule>) -> Result<AstNode, Error> {
@@ -191,7 +297,7 @@ fn build_ast_from_value(val: Pair<Rule>) -> Result<BaseValue, Error> {
         Rule::decimal => Ok(BaseValue::Float(val.as_str().parse::<f32>().unwrap())),
         Rule::boolean => Ok(BaseValue::Bool(val.as_str() == "true")),
         Rule::color   => build_ast_from_color(val),
-        Rule::ident   => Ok(BaseValue::Id(build_ast_from_ident(val).unwrap())),
+        Rule::noun   => Ok(BaseValue::Id(build_ast_from_noun(val)?)),
         Rule::array_literal => {
             let mut elements = vec![];
             for item in val.into_inner() {
@@ -206,6 +312,14 @@ fn build_ast_from_value(val: Pair<Rule>) -> Result<BaseValue, Error> {
             }
             Ok(BaseValue::Array(Some(first_type), elements))
         }
+        _ => unreachable!("Unexpected code 8")
+    }
+}
+
+fn build_ast_from_simple_value(val: Pair<Rule>) -> Result<SimpleValue, Error> {
+    match val.as_rule() {
+        Rule::integer => Ok(SimpleValue::Int(val.as_str().parse::<i32>().unwrap())),
+        Rule::noun   => Ok(SimpleValue::Id(build_ast_from_noun(val)?)),
         _ => unreachable!("Unexpected code 8")
     }
 }

@@ -36,7 +36,7 @@ fn compile(source : &str) -> Message {
     fn test_file() {
         let file_path = "../grammar/test.txt";
 
-        let contents = fs::read_to_string(file_path)
+        let contents = std::fs::read_to_string(file_path)
             .expect("Should have been able to read the file");
         //assert!(contents.len() > 0);
         let result = compile(&contents);

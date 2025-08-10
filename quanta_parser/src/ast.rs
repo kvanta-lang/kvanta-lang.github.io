@@ -1,3 +1,4 @@
+use std::fmt;
 
 pub mod builder;
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -8,9 +9,59 @@ pub enum BaseType {
     Float,
     ErrorType(String), // For error handling, not a real type
 }
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum VariableCall {
+    Name(String),
+    ArrayCall(String, Vec<SimpleExpression>)
+}
+
+impl fmt::Display for VariableCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VariableCall::Name(name) => write!(f, "{}", name),
+            VariableCall::ArrayCall(name, indices) => {
+                write!(f, "{}[", name)?;
+                for (i, index) in indices.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", index)?;
+                }
+                write!(f, "]")
+            }
+        }
+    }
+}
+
+impl fmt::Display for SimpleExpression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SimpleExpression::Value(value) => write!(f, "{}", value),
+            SimpleExpression::Unary(op, expr) => write!(f, "{:?}({})", op, expr),
+            SimpleExpression::Binary(op, left, right) => write!(f, "({} {:?} {})", left, op, right),
+        }
+    }
+}
+
+impl fmt::Display for SimpleValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SimpleValue::Id(var) => write!(f, "{}", var),
+            SimpleValue::Int(value) => write!(f, "{}", value),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SimpleValue {
+    Id(VariableCall),
+    Int(i32)
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum BaseValue {
-    Id(String),
+    Id(VariableCall),
     Int(i32),
     Bool(bool),
     Color(u8, u8, u8),
@@ -48,13 +99,15 @@ impl BaseValue {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+impl Eq for BaseValue {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnaryOperator {
     UnaryMinus,
     Parentheses
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Operator {
     EQ,
     NQ,
@@ -97,7 +150,33 @@ pub fn goes_before(op1 : Operator,  op2: Operator) -> bool {
     return prec(op1) >= prec(op2)
 }
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SimpleExpression {
+    Value(SimpleValue),
+    Unary(UnaryOperator, Box<SimpleExpression>),
+    Binary(Operator, Box<SimpleExpression>, Box<SimpleExpression>)
+}
+
+impl SimpleExpression {
+    pub fn to_expr(self) -> Expression {
+        match self {
+            SimpleExpression::Value(value) => {
+                Expression::Value(match value {
+                    SimpleValue::Id(var) => BaseValue::Id(var),
+                    SimpleValue::Int(i) => BaseValue::Int(i),
+                })   
+            }
+            SimpleExpression::Unary(op, expr) => Expression::Unary(op, Box::new(expr.to_expr())),
+            SimpleExpression::Binary(op, left, right) => {
+                Expression::Binary(op, Box::new(left.to_expr()), Box::new(right.to_expr()))
+            }
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     Value(BaseValue),
     Unary(UnaryOperator, Box<Expression>),
@@ -106,7 +185,8 @@ pub enum Expression {
 #[derive(Debug, Clone)]
 pub enum AstNode {
     Command { name: String, args: Vec<Expression> },
-    Init    { typ: Option<Type>, val : String, expr: Expression },
+    Init    { typ: Type, val : String, expr: Expression },
+    SetVal { val: VariableCall, expr: Expression },
     For     { val: String, from: BaseValue, to: BaseValue, block: AstBlock },
     While   { clause: Expression, block: AstBlock},
     If      { clause: Expression, block: AstBlock, else_block: Option<AstBlock>}

@@ -38,7 +38,15 @@ impl Program {
                      match self.clone().type_check_init(typ.clone(), val.clone(), expr.clone()) {
                         Err(err) => return Some(err),
                         Ok(tupl) => {
-                            self.variables.insert(val.clone(), tupl);
+                            self.variables.insert(val.clone().trim().to_string(), tupl);
+                        }
+                    }
+                },
+                AstNode::SetVal { val, expr } => {
+                    match self.clone().type_check_set_val(val.clone(), expr.clone()) {
+                        Err(err) => return Some(err),
+                        Ok((var_type, expr)) => {
+                            self.variables.insert(val.to_string(), (var_type, expr));
                         }
                     }
                 },
@@ -101,32 +109,24 @@ impl Program {
         None
     }
 
-    fn type_check_init(&self, new_type_def : Option<Type>, val : String, expr : Expression) -> Result<(Type, Expression), Error>{
-        if let Some((old_type, _)) = self.variables.get(&val) {
-            if new_type_def.is_some() {
-                return Err(Error::LogicError { message: format!("Variable {} is re-defined!", val).into() }); 
-            }
-            match  self.clone().type_check_expr(&expr) {
-                Err(error) => return Err(error),
-                Ok(new_type) => {
-                    if new_type != *old_type {
-                        return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", new_type, val, old_type).into() }); 
-                    }
-                    return Ok((new_type, expr));
-                }
-            }
-        } else if new_type_def.is_none() {
-            return Err(Error::LogicError { message: format!("Type of variable {} is not defined", val).into() })
+    fn type_check_set_val(&self, val: VariableCall, expr: Expression) -> Result<(Type, Expression), Error> {
+        let var_type = self.clone().type_check_var(&val)?;
+        let expr_type = self.clone().type_check_expr(&expr)?;
+        if var_type != expr_type {
+            return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", expr_type, val, var_type).into() });
+        }
+        Ok((var_type, expr))
+    }
+
+    fn type_check_init(&self, new_type_def : Type, val : String, expr : Expression) -> Result<(Type, Expression), Error>{
+        if let Some(_) = self.variables.get(&val) {
+            return Err(Error::LogicError { message: format!("Variable {} is re-defined!", val).into() }); 
         } else {
-            match self.clone().type_check_expr(&expr) {
-                Err(error) => return Err(error),
-                Ok(new_type) => {
-                    if new_type != new_type_def.clone().unwrap() {
-                        return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", new_type, val, new_type_def.unwrap()).into() }); 
-                    }
-                    Ok((new_type, expr))
-                }
+            let expr_type = self.clone().type_check_expr(&expr)?;
+            if expr_type != new_type_def.clone() {
+                return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", expr_type, val, new_type_def).into() }); 
             }
+            Ok((expr_type, expr))
         }
     }
 
@@ -240,16 +240,40 @@ impl Program {
         }
     }
 
+    fn recursive_type_check_var(&self, tp: &Type, depth: usize) -> Result<Type, Error> {
+        if let Type::Array(inner_type, size) = tp {
+            if let Some(inner) = inner_type.as_ref() {
+                if depth == 1 {
+                    return Ok(inner.clone());
+                } else {
+                    return self.recursive_type_check_var(inner, depth - 1);
+                }
+            } else {
+                return Err(Error::ParseError { message: "Array type is not defined".into() });
+            }
+        }
+        Err(Error::ParseError { message: "Expected an array type".into() })
+    }
+
+    fn type_check_var(&self, var: &VariableCall) -> Result<Type, Error> {
+        let (name, depth) = match var {
+            VariableCall::Name(name) => (name, 0),
+            VariableCall::ArrayCall(name, inds) => (name, inds.len())
+        };
+        if let Some((tp, _)) = self.variables.get(name) {
+            if depth == 0 { return Ok(tp.clone());} else {
+                return self.recursive_type_check_var(tp, depth);
+            }
+        } else {
+            Err(Error::LogicError { message: format!("Variable {} is not defined!", var).into() })
+        }
+    }
+
     fn type_check_baseval(&self, base : &BaseValue) -> Result<Type, Error> {
         use BaseType::*;
         use Type::*;
         match base {
-            BaseValue::Id(var) => {
-                if let Some((tp, _)) = self.variables.get(var) {
-                    return Ok(tp.clone())
-                }
-                Err(Error::LogicError { message: format!("Variable {} is not defined!", var).into() })
-            }
+            BaseValue::Id(var) => self.type_check_var(var),
             BaseValue::Int(_) => Ok(Primitive(Int)),
             BaseValue::Bool(_) => Ok(Primitive(Bool)),
             BaseValue::Color(_, _, _) => Ok(Primitive(Color)),

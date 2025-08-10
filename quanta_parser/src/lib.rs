@@ -41,12 +41,14 @@ mod tests {
         let contents = fs::read_to_string(file_path)
             .expect("Should have been able to read the file");
         assert!(contents.len() > 0);
-        match parse_ast(contents.as_str()) {
+        let res = parse_ast(contents.as_str());
+        match &res {
             Ok(_ast) => {},
             Err(Error::ParseError{message}) => {print!("{}", message.to_string())}
             Err(Error::LogicError{message}) => {print!("{}", message.to_string())}
             Err(Error::TypeError{message}) => {print!("{}", message.to_string())}
             Err(Error::RuntimeError{message}) => {print!("{}", message.to_string())}
         }
+        assert!(res.is_ok());
     }
 }

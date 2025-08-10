@@ -23,6 +23,7 @@ setLineColor(Color::Green);
 circle(320, 240, 50);
 
 array<int,3> letters = {1, 2, 3};
+letters[1] = 0;
 
 
 rectangle(100, 100, 200, 200);

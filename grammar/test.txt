@@ -1,31 +1,20 @@
-setLineColor(Color::Blue);
-setFigureColor(Color::Yellw);
-circle(320, 240, 10000);
-setFigureColor(Color::Red);
-int i = 0;
-for i in (1..5) {
-  rectangle(i*100,i*100, (i+1)*100, (i+1)*100);
-}
-
 circle(320, 240, 100);
-int x = 101;
-circle(x, x, x);
-if (x > 100) {
-    circle(1,1,1);
-    circle(2,2,2);
-} else {
-    circle(3,3,3);
-    circle(4,4,4);
-    circle(5,5,5);
-}
+setFigureColor(Color::Red);
+setLineColor(Color::Green);
+circle(320, 240, 50);
 
-int j = 0;
-while (j < 13) {
-    rectangle(j,j, j * 2, j * 2);
-    j = j + 1;
-}
+array<int,3> letters = {1, 2, 3};
 
-for q in (5 .. -1) {
-    circle(100,100,100);
-    line(q+2,q+2,q+2,q+2);
+letters[1] = 0;
+
+
+rectangle(100, 100, 200, 200);
+
+setFigureColor(Color::Blue);
+rectangle(125, 125, 175, 175);
+
+for i in (0..10) {
+    setFigureColor(Color::Random);
+    int a = 50;
+    rectangle(0, i * a, (i+1) * a, (i+1) * a);
 }

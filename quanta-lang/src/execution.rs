@@ -1,6 +1,6 @@
 use std::collections::{HashMap};
 
-use quanta_parser::{ast::{AstBlock, BaseValue, Expression, Operator, UnaryOperator, AstNode}, error::Error};
+use quanta_parser::{ast::{AstBlock, AstNode, BaseValue, Expression, Operator, UnaryOperator, VariableCall}, error::Error};
 
 use crate::{utils::{canvas::Canvas, message::Message}, program::Program};
 use js_sys::Math;
@@ -22,6 +22,50 @@ fn color_to_str(r: &u8, g : &u8, b: &u8) -> String {
 }
 
 impl Execution {
+
+    fn get_variable(&mut self, var: &VariableCall) -> Result<&mut BaseValue, Error> {
+        match var {
+            VariableCall::Name(name) => self.variables.get_mut(name).ok_or(Error::RuntimeError { message: format!("Unknown variable: {}", name).into() }),
+            VariableCall::ArrayCall(name, indices) => {
+                if !self.variables.contains_key(name) {
+                    return Err(Error::RuntimeError { message: format!("Unknown array 1: {}, variables: {:?}", name, self.variables).into() });
+                }
+                if indices.is_empty() {
+                    return Err(Error::RuntimeError { message: "Empty index".into() });
+                }
+                let mut integer_indices: Vec<i32> = vec![];
+                for index in indices {
+                    match self.calculate_expression(index.clone().to_expr()) {
+                        Ok(BaseValue::Int(i)) => {
+                            if i < 0 {
+                                return Err(Error::RuntimeError { message: format!("Negative index for array {}: {}", name, i).into() });
+                            }
+                            integer_indices.push(i);
+                        },
+                        _ => return Err(Error::RuntimeError { message: "Array indices must be integers".into() }),
+                    }
+                }
+                let variables_clone = self.variables.clone();
+                let maybe_array = self.variables.get_mut(name);
+                if maybe_array.is_none() {
+                    return Err(Error::RuntimeError { message: format!("Unknown array: {} variables: {:?}", name, variables_clone).into() });
+                }
+                let mut array = maybe_array.unwrap();
+                while integer_indices.len() > 0 {
+                    if let BaseValue::Array(_, elems) = array {
+                        let index = integer_indices.remove(0);
+                        if index < 0 || index as usize >= elems.len() {
+                            return Err(Error::RuntimeError { message: format!("Index out of bounds for array {}: {}", name, index).into() });
+                        }
+                        array = elems.get_mut(index as usize).unwrap();
+                    } else {
+                        return Err(Error::RuntimeError { message: format!("Variable {} is not an array", name).into() });
+                    }
+                }
+                Ok(array)
+            }
+        }
+    }
 
     fn execute_function(&mut self, function_name: &str, args: Vec<Expression>) -> Option<Error>{
         let mut vals : Vec<BaseValue> = vec![];
@@ -137,10 +181,27 @@ impl Execution {
             return Some(err);
         }
         if let Ok(value) = val {
-            self.variables.insert(var.to_string(), value);
+            self.variables.insert(var, value);
             return None
         }
         Some(Error::RuntimeError { message: "Couldn't assign new value".into() })
+    }
+
+    fn execute_set(&mut self, var: &VariableCall, expr: Expression) -> Option<Error> {
+        let val = self.calculate_expression(expr);
+        if let Err(err) = val {
+            return Some(err);
+        }
+        if let Ok(value) = val {
+            match self.get_variable(var) {
+                Ok(variable) => {
+                    *variable = value;
+                    return None;
+                },
+                Err(err) => return Some(err),
+            }
+        }
+        Some(Error::RuntimeError { message: "Couldn't set new value".into() })
     }
 
 
@@ -180,8 +241,13 @@ impl Execution {
                        return Some(err);
                     }
                 },
-                AstNode::Init { typ: _, val, expr } => {
-                    if let Some(err) = self.execute_init(&val, expr) {
+                AstNode::Init { typ : _, val, expr } => {
+                    if let Some(err) = self.execute_init(val, expr) {
+                        return Some(err);
+                    }
+                }
+                AstNode::SetVal { val, expr } => {
+                    if let Some(err) = self.execute_set(&val, expr) {
                         return Some(err);
                     }
                 }
@@ -246,23 +312,19 @@ impl Execution {
     }
 
     fn execute_for(&mut self, val: String, cycle : i32, block : AstBlock) {
-        self.execute_init(&val, Expression::Value(BaseValue::Int(cycle)));
+        self.execute_init(val, Expression::Value(BaseValue::Int(cycle)));
         let mut new_exec = self.clone();
         new_exec.execute_commands(block.nodes.clone());
         self.update_variables(&new_exec);
         self.canvas = new_exec.canvas;
     }
 
-    fn calculate_expression(&self, expr: Expression) -> Result<BaseValue, Error> {
+    fn calculate_expression(&mut self, expr: Expression) -> Result<BaseValue, Error> {
         match expr {
             Expression::Value(base_value) => {
                 match base_value {
                     BaseValue::Id(var) => {
-                        if let Some(val) = self.variables.get(&var) {
-                            return Ok(val.clone());
-                        } else {
-                            return Err(Error::RuntimeError { message: format!("Unknown variable: {}", var).into() })
-                        }
+                        self.get_variable(&var).cloned()
                     },
                     x => Ok(x)
                 }
