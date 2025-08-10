@@ -45,7 +45,7 @@ impl Execution {
             },
             "line" => {
                 if let (Int(x1), Int(y1), Int(x2), Int(y2)) = (&vals[0], &vals[1], &vals[2], &vals[3]) {
-                    self.canvas.add_command(format!("line {} {} {} {}", x1, y1, x2, y2));
+                    self.canvas.add_command(format!("line {} {} {} {} stroke={} width={}", x1, y1, x2, y2, self.line_color, 1));
                     None
                 } else {
                     Some(Error::RuntimeError { message: "Incorrect arguments for line function!".into() })
@@ -53,7 +53,7 @@ impl Execution {
             },
             "rectangle" => {
                 if let (Int(x1), Int(y1), Int(x2), Int(y2)) = (&vals[0], &vals[1], &vals[2], &vals[3]) {
-                    self.canvas.add_command(format!("rectangle {} {} {} {}", x1, y1, x2, y2));
+                    self.canvas.add_command(format!("rectangle {} {} {} {} fill={} stroke={} width={}", x1, y1, x2, y2, self.figure_color, self.line_color, 1));
                     None
                 } else {
                     Some(Error::RuntimeError { message: "Incorrect arguments for rectangle function!".into() })

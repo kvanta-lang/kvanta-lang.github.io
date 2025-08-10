@@ -17,13 +17,16 @@ import initWasm, { compile_code } from "../quanta-lang/pkg/quanta_lang.js";
 const runBtn = document.getElementById("runBtn");
 
 // starter code
-const startCode = `// Quanta demo
-background #071022
-circle 200 160 80 fill=tomato stroke=white width=4
-rectangle 320 80 200 120 fill=#1e293b stroke=#94a3b8 width=2
-line 60 300 540 300 stroke=#22d3ee width=3
-polygon 380 260 430 340 330 340 fill=#10b981
-arc 200 160 110 20 320 stroke=gold width=6
+const startCode = `circle(320, 240, 100);
+setFigureColor(Color::Red);
+setLineColor(Color::Green);
+circle(320, 240, 50);
+
+
+rectangle(100, 100, 200, 200);
+
+setFigureColor(Color::Blue);
+rectangle(125, 125, 175, 175);
 `;
 
 const editor = new EditorView({
