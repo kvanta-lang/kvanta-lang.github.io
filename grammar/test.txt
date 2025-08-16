@@ -1,20 +1,12 @@
-circle(320, 240, 100);
-setFigureColor(Color::Red);
-setLineColor(Color::Green);
-circle(320, 240, 50);
+func f(x: int) -> int
+{
+    circle(x, 240, 100);
+}
 
-array<int,3> letters = {1, 2, 3};
-
-letters[1] = 0;
-
-
-rectangle(100, 100, 200, 200);
-
-setFigureColor(Color::Blue);
-rectangle(125, 125, 175, 175);
-
-for i in (0..10) {
-    setFigureColor(Color::Random);
-    int a = 50;
-    rectangle(0, i * a, (i+1) * a, (i+1) * a);
+func main() -> int
+{
+    f(320);
+    f(120);
+    f(0);
+    rectangle(100, 100, 200, 200);
 }

@@ -6,8 +6,7 @@ pub enum BaseType {
     Int,
     Bool,
     Color,
-    Float,
-    ErrorType(String), // For error handling, not a real type
+    Float
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -194,4 +193,18 @@ pub enum AstNode {
 #[derive(Debug, Clone)]
 pub struct AstBlock {
     pub nodes : Vec<AstNode>
+}
+
+#[derive(Debug, Clone)]
+pub struct AstFunction {
+    pub name: String,
+    pub args: Vec<(String, Type)>,
+    pub return_type: Option<Type>,
+    pub block: AstBlock
+}
+
+#[derive(Debug, Clone)]
+pub enum AstProgram {
+    Block(AstBlock),
+    Forest(Vec<AstFunction>)
 }

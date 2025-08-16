@@ -1,10 +1,10 @@
 use pest::iterators::{Pairs, Pair};
-use crate::{ast::{SimpleExpression, SimpleValue, VariableCall}, error::Error, Rule};
+use crate::{ast::{AstFunction, AstProgram, SimpleExpression, SimpleValue, VariableCall}, error::Error, Rule};
 
 
 use super::{AstBlock, AstNode, Expression, Operator,  BaseType, Type, BaseValue, goes_before, UnaryOperator };
 
-pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstBlock, Error> {
+pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstProgram, Error> {
     assert!(docs.len() == 1);
     let doc = docs.into_iter().next().unwrap();
     assert!(doc.as_rule() == Rule::document);
@@ -14,10 +14,54 @@ pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstBlock, Error> {
     let block_rule = doc_iter.next().unwrap();
     let eof_rule = doc_iter.next().unwrap();
 
-    assert!(block_rule.as_rule() == Rule::block);
     assert!(eof_rule.as_rule() == Rule::EOI);
+    if block_rule.as_rule() == Rule::block {
+        Ok(AstProgram::Block(build_ast_from_block(block_rule.into_inner())?))
+    } else {
+        Ok(AstProgram::Forest(build_ast_from_forest(block_rule.into_inner())?))
+    }    
+}
 
-    build_ast_from_block(block_rule.into_inner())
+fn build_ast_from_forest(statements: Pairs<Rule>) -> Result<Vec<AstFunction>, Error> {
+    let mut blocks : Vec<AstFunction> = vec![];
+    for pair in statements {
+        match pair.as_rule() {
+            Rule::function => {
+                blocks.push(build_ast_from_function(pair.into_inner())?);
+            }
+            _ => return Err(Error::ParseError { message: format!("Expected a function at: {:?}", pair.as_rule()).into() })
+        }
+    }
+    Ok(blocks)
+}
+
+fn build_ast_from_function(statement: Pairs<Rule>) -> Result<AstFunction, Error> {
+    let mut iter = statement.into_iter();
+    let header = iter.next().unwrap();
+    assert!(header.as_rule() == Rule::fn_header);
+    let body = iter.next().unwrap();
+    assert!(body.as_rule() == Rule::block);
+
+    let mut header_iter = header.into_inner().into_iter();
+    let name = build_ast_from_ident(header_iter.next().unwrap())?;
+    let mut args = vec![];
+    let args_iter = header_iter.next().unwrap().into_inner().into_iter();
+    for arg in args_iter {
+        let mut arg_iter = arg.into_inner().into_iter();
+        let arg_name = build_ast_from_ident(arg_iter.next().unwrap())?;
+        let arg_type = build_ast_from_type(arg_iter.next().unwrap())?;
+        args.push((arg_name, arg_type));
+    }
+    let typer = {
+        if let Some(x) = header_iter.next() {
+            build_ast_from_type(x)?;
+        }
+        None
+    };
+    
+    let block = build_ast_from_block(body.into_inner())?;
+    Ok(AstFunction { name: name, args: args, return_type: typer, block: block })
+
 }
 
 fn build_ast_from_block(statements: Pairs<Rule>) -> Result<AstBlock, Error> {
@@ -42,15 +86,22 @@ fn build_ast_from_statement(statement: Pairs<Rule>) -> Result<AstNode, Error> {
         Rule::if_statement => build_ast_from_if(state.into_inner()),
         Rule::for_statement => build_ast_from_for(state.into_inner()),
         Rule::while_statement => build_ast_from_while(state.into_inner()),
+        Rule::return_statement => {
+            let expr = build_ast_from_expression(iter.next().unwrap())?;
+            Ok(AstNode::Command { name: "return".to_string(), args: vec![expr] })
+        }
         _ => unreachable!("Unexpected code 7")
     }
 }
 
 fn build_ast_from_command(command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
+    let name = build_ast_from_ident(iter.next().unwrap())?;
+    let args = build_ast_from_arglist(iter)?;
+    print!("Building command {} with args {:?}\n", name, args);
     return Ok(AstNode::Command { 
-        name: build_ast_from_ident(iter.next().unwrap())?,
-        args: build_ast_from_arglist(iter)?
+        name: name,
+        args: args
     });
 }
 

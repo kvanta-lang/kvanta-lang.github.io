@@ -26,6 +26,7 @@
             devShells.default =
               pkgs.mkShell {
                 name = "rust-wasm-final-attempt";
+		RUST_BACKTRACE=1;
 
                 packages = with pkgs; [
                   f

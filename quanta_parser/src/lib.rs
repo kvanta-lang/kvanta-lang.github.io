@@ -1,9 +1,10 @@
 
 use ast::builder::build_ast_from_doc;
-use ast::AstBlock;
 use error::Error;
 use pest::Parser;
 use pest_derive::Parser;
+
+use crate::ast::AstProgram;
 pub mod ast;
 pub mod error;
 
@@ -11,7 +12,7 @@ pub mod error;
 #[grammar = "../grammar/grammar.pest"]
 pub struct QuantaParser;
 
-pub fn parse_ast(source : &str) -> Result<AstBlock, Error> {
+pub fn parse_ast(source : &str) -> Result<AstProgram, Error> {
     let parsed_doc = QuantaParser::parse(Rule::document, source);
     match parsed_doc {
         Ok(doc) => build_ast_from_doc(doc),

@@ -40,5 +40,5 @@ fn compile(source : &str) -> Message {
             .expect("Should have been able to read the file");
         //assert!(contents.len() > 0);
         let result = compile(&contents);
-        //print!("{}\n=====================================", result);
+        print!("{}\n=====================================", result);
     }

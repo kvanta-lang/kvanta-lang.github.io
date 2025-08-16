@@ -6,30 +6,80 @@ use Type::*;
 
 #[derive(Debug, Clone)]
 pub struct Program {
-    pub lines: AstBlock, 
+    pub lines: AstProgram, 
     pub variables : HashMap<String, (Type, Expression)>,
-    pub functions : HashMap<String, Vec<Type>>
+    pub function_defs : HashMap<String, (Vec<Type>, Option<Type>)>,
+    pub functions : HashMap<String, (Vec<(String, Type)>, Option<Type>, AstBlock)>,
 }
 
-pub fn create_program(ast: AstBlock) -> Program {
-    Program {lines: ast, variables: HashMap::new(), functions: HashMap::from([
-        (String::from("circle"), vec![Primitive(Int), Primitive(Int), Primitive(Int)]),
-        (String::from("line"), vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)]),
-        (String::from("rectangle"), vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)]),
-        (String::from("setLineColor"), vec![Primitive(Color)]),
-        (String::from("setFigureColor"), vec![Primitive(Color)]),
-        (String::from("setLineWidth"), vec![Primitive(Int)]),
-        (String::from("polygon"), vec![]), // at least 6 Ints for polygon
-        (String::from("arc"), vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)]),
+pub fn create_program(ast: AstProgram) -> Program {
+    Program {lines: ast, variables: HashMap::new(), functions: HashMap::new(), function_defs: HashMap::from([
+        (String::from("circle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int)], None)),
+        (String::from("line"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
+        (String::from("rectangle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
+        (String::from("setLineColor"), (vec![Primitive(Color)], None)),
+        (String::from("setFigureColor"), (vec![Primitive(Color)], None)),
+        (String::from("setLineWidth"), (vec![Primitive(Int)], None)),
+        (String::from("polygon"), (vec![], None)), // at least 6 Ints for polygon
+        (String::from("arc"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
     ])}
 }
 
 impl Program {
+
     pub fn type_check(&mut self) -> Option<Error> {
-        let nodes = self.lines.nodes.clone();
-        for line in nodes {
+        match self.lines {
+            AstProgram::Block(ref block) => self.type_check_block(block.clone()),
+            AstProgram::Forest(ref forest) => {
+                for func in forest {
+                    self.function_defs.insert(func.name.clone(), (func.args.iter().map(|(_, t)| t.clone()).collect(), func.return_type.clone()));
+                }
+                for func in forest {
+                    let mut sub = Program {
+                        lines: AstProgram::Block(func.block.clone()),
+                        variables: self.variables.clone(),
+                        functions: self.functions.clone(),
+                        function_defs: self.function_defs.clone(),
+                    };
+                    for arg in &func.args {
+                        print!("Adding argument {} with type {:?} to function {}\n", arg.0, arg.1, func.name);
+                        let simple_expr = {
+                            match arg.1.clone() {
+                                Primitive(Int) => Expression::Value(BaseValue::Int(0)),
+                                Primitive(Float) => Expression::Value(BaseValue::Float(0.0)),
+                                Primitive(Bool) => Expression::Value(BaseValue::Bool(false)),
+                                Primitive(Color) => Expression::Value(BaseValue::RandomColor),
+                                Array(_, _) => {
+                                    Expression::Value(BaseValue::Array(None, vec![]))
+                                }
+                            }
+                        };
+                        sub.variables.insert(arg.0.clone(), (arg.1.clone(), simple_expr));
+                    }
+                    if let Some(err) = sub.type_check_function(func.clone()) {
+                        return Some(err);
+                    }
+                    self.functions.insert(func.name.clone(), (func.args.clone(), func.return_type.clone(), func.block.clone()));
+                }
+                None
+            }
+        }
+    }
+
+    pub fn type_check_function(&mut self, func: AstFunction) -> Option<Error> {
+        print!("Type checking function {} with args {:?} and return type {:?}\n", func.name, func.args, func.return_type);
+        let mut func_prog = self.clone();
+        if let Some(err) = func_prog.type_check_block(func.block) {
+            return Some(err);
+        }
+        None
+    }
+
+    pub fn type_check_block(&mut self, block : AstBlock) -> Option<Error> {
+        for line in block.nodes {
             match line {
                 AstNode::Command { name, args } => {
+                    print!("Command {} knows about variables: {:?}\n", name, self.variables);
                     if let Some(err) = self.clone().type_check_command(name.clone(), args.clone()) {
                         return Some(err);
                     }
@@ -72,7 +122,8 @@ impl Program {
 
 
     fn type_check_command(&self, name : String, args : Vec<Expression>) -> Option<Error> {
-        if let Some(params) = self.functions.get(&name) {
+        print!("Type checking command {} with args {:?}\n", name, args);
+        if let Some((params, return_type)) = self.function_defs.get(&name) {
             if name == "polygon" {
                 if args.len() < 6 || args.len() % 2 != 0 {
                     return Some(Error::LogicError { message: format!("Wrong number of arguments for command polygon: got {}, expected at least 6 (even number) for polygon", args.len()).into() });
@@ -138,13 +189,13 @@ impl Program {
                     return Some(Error::LogicError { message: format!("If clause must be a bool expression").into() })
                 }
                 let mut if_prog = self.clone();
-                if_prog.lines = block;
+                if_prog.lines = AstProgram::Block(block);
                 if let Some(err) = if_prog.type_check() {
                     return Some(err);
                 }
                 if let Some(else_lines) = else_block {
                     let mut else_prog = self.clone();
-                    else_prog.lines = else_lines;
+                    else_prog.lines = AstProgram::Block(else_lines);
                     if let Some(err) = else_prog.type_check() {
                         return Some(err);
                     }
@@ -166,7 +217,7 @@ impl Program {
                             return Some(Error::LogicError { message: format!("For loop range can only be integer values").into() })  
                         }
                         let mut for_prog = self.clone();
-                        for_prog.lines = block;
+                        for_prog.lines = AstProgram::Block(block);
                         for_prog.variables.insert(val, (Primitive(Int), Expression::Value(from)));
                         if let Some(err) = for_prog.type_check() {
                             return Some(err);
@@ -186,7 +237,7 @@ impl Program {
                     return Some(Error::LogicError { message: format!("While clause must be a bool expression").into() })
                 }
                 let mut while_prog = self.clone();
-                while_prog.lines = block;
+                while_prog.lines = AstProgram::Block(block);
                 if let Some(err) = while_prog.type_check() {
                     return Some(err);
                 }

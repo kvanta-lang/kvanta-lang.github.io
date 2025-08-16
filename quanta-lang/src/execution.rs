@@ -1,14 +1,15 @@
 use std::collections::{HashMap};
 
-use quanta_parser::{ast::{AstBlock, AstNode, BaseValue, Expression, Operator, UnaryOperator, VariableCall}, error::Error};
+use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, BaseValue, Expression, Operator, Type, UnaryOperator, VariableCall}, error::Error};
 
 use crate::{utils::{canvas::Canvas, message::Message}, program::Program};
 use js_sys::Math;
 
 #[derive(Debug, Clone)]
 pub struct Execution {
-    pub lines: AstBlock, 
+    pub lines: AstProgram, 
     pub variables : HashMap<String, BaseValue>,
+    pub functions : HashMap<String, (Vec<(String, Type)>, Option<Type>, AstBlock)>,
     pub canvas    : Canvas,
     figure_color : String,
     line_color : String,
@@ -169,8 +170,27 @@ impl Execution {
                     Some(Error::RuntimeError { message: "Incorrect arguments for setLineWidth function!".into() })
                 }
             },
-            _ => {
-                return Some(Error::RuntimeError { message: format!("Unknown function: {}", function_name).into() })
+            name => {
+                if self.functions.contains_key(name) {
+                    let (params, return_type, body) = self.functions.get(name).unwrap();
+                    if params.len() != vals.len() {
+                        return Some(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
+                    }
+                    let mut new_exec = self.clone();
+                    new_exec.canvas = Canvas::default();
+                    for (i, param) in params.iter().enumerate() {
+                        print!("For function {} Setting variable {} to {:?}", name, param.0, vals[i]);
+                        new_exec.variables.insert(param.0.clone(), vals[i].clone());
+                    }
+                    if let Some(err) = new_exec.execute_commands(body.nodes.clone()) {
+                        return Some(err);
+                    }
+                    for command in new_exec.canvas.get_commands().iter() {
+                        self.canvas.add_command(command.clone());
+                    }
+                    return None;
+                }
+                Some(Error::RuntimeError { message: format!("Unknown function: {}", function_name).into() })
             }
         }
     }
@@ -206,10 +226,12 @@ impl Execution {
 
 
     pub fn from_program(prog : Program) -> Execution {
+        print!("Creating execution with functions: {:?}", prog.functions);
         Execution {
             lines : prog.lines.clone(),
             variables : HashMap::new(),
             canvas: Canvas::default(),
+            functions: prog.functions.clone(),
             figure_color: "#FFFFFF".to_string(),
             line_color: "#000000".to_string(),
             line_width: 1,
@@ -226,11 +248,26 @@ impl Execution {
     }
 
     pub fn execute(&mut self) -> Message {
-        let commands = self.lines.nodes.clone();
-        if let Some(err) = self.execute_commands(commands) {
-            return Message::create_error_message(err);
+        match self.lines {
+            AstProgram::Block(ref block) => {
+                if let Some(err) = self.execute_commands(block.nodes.clone()) {
+                    return Message::create_error_message(err);
+                }
+                Message::from_canvas(self.canvas.clone())
+            },
+            AstProgram::Forest(ref funcs) => {
+                for func in funcs {
+                    if func.name == "main" {
+                        if let Some(err) = self.execute_commands(func.block.nodes.clone()) {
+                            return Message::create_error_message(err);
+                        }
+                        return Message::from_canvas(self.canvas.clone());
+                    }
+                }
+                return Message::create_error_message(Error::RuntimeError { message: "No main function found".into() });
+            },
         }
-        Message::from_canvas(self.canvas.clone())
+        
     }
 
     pub fn execute_commands(&mut self, nodes : Vec<AstNode>) -> Option<Error> {

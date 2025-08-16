@@ -1,11 +1,18 @@
-document      =  { SOI ~ block ~ EOI }
-source_file   =  { block }
+document      =  { SOI ~ source_file ~ EOI }
+source_file   =  _{ forest | block }
 block         =  { statement* }
+
+forest 		  = { function+ }
 bracket_block =  { "{" ~ block ~ "}" }
 newline       = _{ "\n" | "\r" }
 WHITESPACE    = _{ " " | "\t" | "\n" | "\r" }
 
-statement      =  { (command | init_statement | if_statement | for_statement | while_statement) }
+fn_arg  = {ident ~ ":" ~ type_name}
+fn_arg_list = {(fn_arg ~ ("," ~ fn_arg)*)?}
+fn_header = { "func" ~ ident ~ "(" ~ fn_arg_list ~ ")" ~ ("->" ~ type_name)? }
+function      =  { fn_header ~ "{" ~ block ~ "}" }
+
+statement      =  { (command | init_statement | if_statement | for_statement | while_statement | return_statement) }
 command        =  { function_call ~ ";" }
 function_call  = _{ ident ~ "(" ~ params? ~ ")" }
 params         = _{ expression ~ ("," ~ expression)* }
@@ -18,6 +25,7 @@ for_statement   =  { "for" ~ ident ~ "in" ~ range ~ bracket_block }
 range           =  { "(" ~ numVar ~ ".." ~ numVar ~ ")" }
 numVar          = _{ integer | noun }
 while_statement =  { "while" ~ "(" ~ expression ~ ")" ~ bracket_block }
+return_statement = { "return" ~ expression ~ ";" }
 
 type_name      =  { array_type | primitive_type }
 primitive_type = _{ "bool" | "int" | "color" | "float" }

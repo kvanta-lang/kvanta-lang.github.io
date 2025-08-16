@@ -21,6 +21,10 @@ impl Canvas {
     pub fn add_command(&mut self, c : String) {
         self.commands.push(c);
     }
+
+    pub fn get_commands(&self) -> Vec<String> {
+        self.commands.clone()
+    }
 }
 
 
