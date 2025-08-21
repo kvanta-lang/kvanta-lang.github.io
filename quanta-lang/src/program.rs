@@ -5,9 +5,27 @@ use BaseType::*;
 use Type::*;
 
 #[derive(Debug, Clone)]
+pub struct Scope {
+    variables: HashMap<String, (Type, Expression)>,
+    outer_scope: Box<Option<Scope>>,
+}
+
+impl Scope {
+    pub fn get(&self, name: &str) -> Option<&(Type, Expression)> {
+        if let Some(var) = self.variables.get(name) {
+            return Some(var);
+        }
+        if let Some(outer) = self.outer_scope.as_ref() {
+            return outer.get(name);
+        }
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Program {
     pub lines: AstProgram, 
-    pub variables : HashMap<String, (Type, Expression)>,
+    pub scope : Scope,
     pub function_defs : HashMap<String, (Vec<Type>, Option<Type>)>,
     pub functions : HashMap<String, (Vec<(String, Type)>, Option<Type>, AstBlock)>,
 }
@@ -30,7 +48,7 @@ impl ReturnType {
 }
 
 pub fn create_program(ast: AstProgram) -> Program {
-    Program {lines: ast, variables: HashMap::new(), functions: HashMap::new(), function_defs: HashMap::from([
+    Program {lines: ast, scope: Scope { variables: HashMap::new(), outer_scope: Box::new(None) }, functions: HashMap::new(), function_defs: HashMap::from([
         (String::from("circle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int)], None)),
         (String::from("line"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
         (String::from("rectangle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
@@ -46,6 +64,15 @@ pub fn create_program(ast: AstProgram) -> Program {
 
 impl Program {
 
+    fn create_subprogram(&self, lines: Option<AstBlock>) -> Program {
+        Program {
+            lines: lines.map(|x| AstProgram::Block(x)).unwrap_or(self.lines.clone()),
+            scope: Scope { variables: HashMap::new(), outer_scope: Box::new(Some(self.scope.clone())) },
+            functions: self.functions.clone(),
+            function_defs: self.function_defs.clone(),
+        }
+    }
+
     pub fn type_check(&mut self) -> Result<ReturnType, Error> {
         match self.lines {
             AstProgram::Block(ref block) => self.type_check_block(block.clone()),
@@ -54,12 +81,8 @@ impl Program {
                     self.function_defs.insert(func.name.clone(), (func.args.iter().map(|(_, t)| t.clone()).collect(), func.return_type.clone()));
                 }
                 for func in forest {
-                    let mut sub = Program {
-                        lines: AstProgram::Block(func.block.clone()),
-                        variables: self.variables.clone(),
-                        functions: self.functions.clone(),
-                        function_defs: self.function_defs.clone(),
-                    };
+                    
+                    let mut sub = self.create_subprogram(None);
                     for arg in &func.args {
                         let simple_expr = {
                             match arg.1.clone() {
@@ -72,7 +95,7 @@ impl Program {
                                 }
                             }
                         };
-                        sub.variables.insert(arg.0.clone(), (arg.1.clone(), simple_expr));
+                        sub.scope.variables.insert(arg.0.clone(), (arg.1.clone(), simple_expr));
                     }
                     if let Some(err) = sub.type_check_function(func.clone()) {
                         return Err(err);
@@ -85,8 +108,8 @@ impl Program {
     }
 
     pub fn type_check_function(&mut self, func: AstFunction) -> Option<Error> {
-        let mut func_prog = self.clone();
-        match func_prog.type_check_block(func.block) {
+        let mut func_prog = self.create_subprogram(Some(func.block));
+        match func_prog.type_check() {
             Ok(ReturnType::Full(t)) => {
                 if let Some(return_type) = &func.return_type {
                     if t != *return_type {
@@ -131,7 +154,7 @@ impl Program {
                      match self.clone().type_check_init(typ.clone(), val.clone(), expr.clone()) {
                         Err(err) => return Err(err),
                         Ok(tupl) => {
-                            self.variables.insert(val.clone().trim().to_string(), tupl);
+                            self.scope.variables.insert(val.clone().trim().to_string(), tupl);
                         }
                     }
                 },
@@ -139,12 +162,13 @@ impl Program {
                     match self.clone().type_check_set_val(val.clone(), expr.clone()) {
                         Err(err) => return Err(err),
                         Ok((var_type, expr)) => {
-                            self.variables.insert(val.to_string(), (var_type, expr));
+                            self.scope.variables.insert(val.to_string(), (var_type, expr));
                         }
                     }
                 },
                 AstNode::If { clause, block, else_block } => {
-                    match self.clone().type_check_if(clause.clone(), block.clone(), else_block.clone())? {   
+                    let if_prog = self.create_subprogram(None);
+                    match if_prog.type_check_if(clause.clone(), block.clone(), else_block.clone())? {   
                         ReturnType::None => {},
                         ReturnType::Partial(t) => {
                             if let Some(rt) = &return_type {
@@ -166,7 +190,7 @@ impl Program {
                     }
                 },
                 AstNode::For { val, from, to, block } => {
-                    match self.clone().type_check_for(val.clone(), from.clone(), to.clone(), block.clone())? {
+                    match self.create_subprogram(None).type_check_for(val.clone(), from.clone(), to.clone(), block.clone())? {
                         ReturnType::None => {},
                         ReturnType::Partial(t) => {
                             if let Some(rt) = &return_type {
@@ -188,7 +212,7 @@ impl Program {
                     }
                 },
                 AstNode::While { clause, block } => {
-                    match self.clone().type_check_while(clause.clone(), block.clone())? {
+                    match self.create_subprogram(None).type_check_while(clause.clone(), block.clone())? {
                         ReturnType::None => {},
                         ReturnType::Partial(t) => {
                             if let Some(rt) = &return_type {
@@ -210,7 +234,7 @@ impl Program {
                     }
                 }
                 AstNode::Return { expr } => {
-                    let expr_type = self.clone().type_check_expr(&expr)?;
+                    let expr_type = self.create_subprogram(None).type_check_expr(&expr)?;
                     if let Some(rt) = &return_type {
                         if *rt != expr_type {
                             return Err(Error::LogicError { message: format!("Return type mismatch: expected {:?}, got {:?}", rt, expr_type).into() });
@@ -277,7 +301,7 @@ impl Program {
     }
 
     fn type_check_init(&self, new_type_def : Type, val : String, expr : Expression) -> Result<(Type, Expression), Error>{
-        if let Some(_) = self.variables.get(&val) {
+        if let Some(_) = self.scope.get(&val) {
             return Err(Error::LogicError { message: format!("Variable {} is re-defined!", val).into() }); 
         } else {
             let expr_type = self.clone().type_check_expr(&expr)?;
@@ -294,8 +318,7 @@ impl Program {
         if clause_type != Primitive(Bool) {
             return Err(Error::LogicError { message: format!("If clause must be a bool expression").into() })
         }
-        let mut if_prog = self.clone();
-        if_prog.lines = AstProgram::Block(block);
+        let mut if_prog = self.create_subprogram(Some(block));
         let if_type = if_prog.type_check()?;
 
         if matches!(else_block, None) {
@@ -306,8 +329,7 @@ impl Program {
         }
 
         let else_block = else_block.unwrap();
-        let mut else_prog = self.clone();
-        else_prog.lines = AstProgram::Block(else_block);
+        let mut else_prog = self.create_subprogram(Some(else_block));
         let else_type = else_prog.type_check()?;
 
         if let (Some(t1), Some(t2)) = (if_type.t(), else_type.t()) {
@@ -330,9 +352,8 @@ impl Program {
         if t != f || t != Primitive(Int) {
             return Err(Error::LogicError { message: format!("For loop range can only be integer values").into() })  
         }
-        let mut for_prog = self.clone();
-        for_prog.lines = AstProgram::Block(block);
-        for_prog.variables.insert(val, (Primitive(Int), Expression::Value(from)));
+        let mut for_prog = self.create_subprogram(Some(block));
+        for_prog.scope.variables.insert(val, (Primitive(Int), Expression::Value(from)));
         for_prog.type_check()
     }
 
@@ -410,7 +431,7 @@ impl Program {
             VariableCall::Name(name) => (name, 0),
             VariableCall::ArrayCall(name, inds) => (name, inds.len())
         };
-        if let Some((tp, _)) = self.variables.get(name) {
+        if let Some((tp, _)) = self.scope.get(name) {
             if depth == 0 { return Ok(tp.clone());} else {
                 return self.recursive_type_check_var(tp, depth);
             }

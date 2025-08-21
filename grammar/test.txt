@@ -1,13 +1,23 @@
 func add(x:int, y:int) -> int {
     if (y == 0) {
-        return x;
+        int p = 42;
+        return p;
     }
     rectangle(100, 100, x, 100);
     return x + y;
 }
 
 func main() {
-    circle(add(300, 20), 240, 100);
+    
+    int v = 100;
+    for i in (1..2) {
+        v = 300;
+        circle(i,i,10);
+        if (i > 0) {
+            v = 200;
+        }
+    }
+    circle(add(300, 20), 240, v);
 }
 
 
