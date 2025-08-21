@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use pest::iterators::Pairs;
 
@@ -247,8 +247,10 @@ pub struct AstFunction {
     pub block: AstBlock
 }
 
+pub type FunctionsAndGlobals = (Vec<AstFunction>, HashMap<String, (Type, Expression)>);
+
 #[derive(Debug, Clone)]
 pub enum AstProgram {
     Block(AstBlock),
-    Forest(Vec<AstFunction>)
+    Forest(FunctionsAndGlobals)
 }

@@ -11,7 +11,7 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub fn get(&self, name: &str) -> Option<&(Type, Expression)> {
+    fn get(&self, name: &str) -> Option<&(Type, Expression)> {
         if let Some(var) = self.variables.get(name) {
             return Some(var);
         }
@@ -26,6 +26,7 @@ impl Scope {
 pub struct Program {
     pub lines: AstProgram, 
     pub scope : Scope,
+    pub global_vars : HashMap<String, (Type, Expression)>,
     pub function_defs : HashMap<String, (Vec<Type>, Option<Type>)>,
     pub functions : HashMap<String, (Vec<(String, Type)>, Option<Type>, AstBlock)>,
 }
@@ -48,7 +49,9 @@ impl ReturnType {
 }
 
 pub fn create_program(ast: AstProgram) -> Program {
-    Program {lines: ast, scope: Scope { variables: HashMap::new(), outer_scope: Box::new(None) }, functions: HashMap::new(), function_defs: HashMap::from([
+    Program {lines: ast, scope: Scope { variables: HashMap::new(), outer_scope: Box::new(None) }, 
+    global_vars: HashMap::new(),
+    functions: HashMap::new(), function_defs: HashMap::from([
         (String::from("circle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int)], None)),
         (String::from("line"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
         (String::from("rectangle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
@@ -64,10 +67,25 @@ pub fn create_program(ast: AstProgram) -> Program {
 
 impl Program {
 
+    fn get(&self, name: &str) -> Option<&(Type, Expression)> {
+        if let Some(var) = self.scope.get(name){
+            return Some(var);
+        }
+        self.global_vars.get(name)
+    }
+
+    fn contains_key(&self, name: &str) -> bool {
+        if self.scope.get(name).is_some() {
+            return true;
+        }
+        self.global_vars.contains_key(name)
+    }
+
     fn create_subprogram(&self, lines: Option<AstBlock>) -> Program {
         Program {
             lines: lines.map(|x| AstProgram::Block(x)).unwrap_or(self.lines.clone()),
             scope: Scope { variables: HashMap::new(), outer_scope: Box::new(Some(self.scope.clone())) },
+            global_vars: self.global_vars.clone(),
             functions: self.functions.clone(),
             function_defs: self.function_defs.clone(),
         }
@@ -77,10 +95,16 @@ impl Program {
         match self.lines {
             AstProgram::Block(ref block) => self.type_check_block(block.clone()),
             AstProgram::Forest(ref forest) => {
-                for func in forest {
+                for func in &forest.0 {
                     self.function_defs.insert(func.name.clone(), (func.args.iter().map(|(_, t)| t.clone()).collect(), func.return_type.clone()));
                 }
-                for func in forest {
+                for (name, (typ, expr)) in &forest.1 {
+                    if self.contains_key(name) {
+                        return Err(Error::LogicError { message: format!("Global variable {} is re-defined!", name).into() });
+                    }
+                    self.global_vars.insert(name.clone(), (typ.clone(), expr.clone()));
+                }
+                for func in &forest.0 {
                     
                     let mut sub = self.create_subprogram(None);
                     for arg in &func.args {
@@ -162,7 +186,12 @@ impl Program {
                     match self.clone().type_check_set_val(val.clone(), expr.clone()) {
                         Err(err) => return Err(err),
                         Ok((var_type, expr)) => {
-                            self.scope.variables.insert(val.to_string(), (var_type, expr));
+                            if self.global_vars.contains_key(val.clone().to_string().as_str()) {
+                                self.global_vars.insert(val.clone().to_string(), (var_type, expr));
+                            } else {
+                                self.scope.variables.insert(val.to_string(), (var_type, expr));
+                            }
+
                         }
                     }
                 },
@@ -301,7 +330,7 @@ impl Program {
     }
 
     fn type_check_init(&self, new_type_def : Type, val : String, expr : Expression) -> Result<(Type, Expression), Error>{
-        if let Some(_) = self.scope.get(&val) {
+        if let Some(_) = self.get(&val) {
             return Err(Error::LogicError { message: format!("Variable {} is re-defined!", val).into() }); 
         } else {
             let expr_type = self.clone().type_check_expr(&expr)?;
@@ -431,7 +460,7 @@ impl Program {
             VariableCall::Name(name) => (name, 0),
             VariableCall::ArrayCall(name, inds) => (name, inds.len())
         };
-        if let Some((tp, _)) = self.scope.get(name) {
+        if let Some((tp, _)) = self.get(name) {
             if depth == 0 { return Ok(tp.clone());} else {
                 return self.recursive_type_check_var(tp, depth);
             }

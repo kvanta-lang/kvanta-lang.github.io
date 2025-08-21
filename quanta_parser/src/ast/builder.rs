@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use pest::iterators::{Pairs, Pair};
-use crate::{ast::{AstFunction, AstProgram, HalfParsedAstFunction, SimpleExpression, SimpleValue, VariableCall}, error::Error, Rule};
+use crate::{ast::{AstFunction, AstProgram, FunctionsAndGlobals, HalfParsedAstFunction, SimpleExpression, SimpleValue, VariableCall}, error::Error, Rule};
 
 
 use super::{AstBlock, AstNode, Expression, Operator,  BaseType, Type, BaseValue, goes_before, UnaryOperator };
+
+
 
 pub struct AstBuilder {
     pub function_signatures : HashMap<String, Option<Type>>
@@ -35,8 +37,9 @@ pub fn build_ast_from_doc(&mut self, docs: Pairs<Rule>) -> Result<AstProgram, Er
     }    
 }
 
-fn build_ast_from_forest(&mut self, statements: Pairs<Rule>) -> Result<Vec<AstFunction>, Error> {
+fn build_ast_from_forest(&mut self, statements: Pairs<Rule>) -> Result<FunctionsAndGlobals, Error> {
     let mut half_functions = vec![];
+    let mut init_statements :HashMap<String, (Type, Expression)> = HashMap::new();
     let mut blocks : Vec<AstFunction> = vec![];
     for pair in statements.clone() {
         match pair.as_rule() {
@@ -45,13 +48,29 @@ fn build_ast_from_forest(&mut self, statements: Pairs<Rule>) -> Result<Vec<AstFu
                 self.function_signatures.insert(res.name.clone(), res.return_type.clone());
                 half_functions.push(res);
             }
+            Rule::global_block => {
+                let mut iter = pair.into_inner().into_iter();
+                
+                while let Some(init) = iter.next() {
+                    if init.as_rule() == Rule::strong_init {
+                        let mut init_iter = init.into_inner().into_iter();
+                        let type_name = self.build_ast_from_type(init_iter.next().unwrap())?;
+                        let mut init_iter2 = init_iter.next().unwrap().into_inner().into_iter();
+                        let name = self.build_ast_from_ident(init_iter2.next().unwrap())?;
+                        let expr = self.build_ast_from_expression(init_iter2.next().unwrap())?;
+                        init_statements.insert(name, (type_name, expr));//AstNode::Init { typ: type_name, val: name, expr });
+                    } else {
+                        return Err(Error::ParseError { message: format!("Expected global variable initialization, found: {:?}", init.as_rule()).into() });
+                    }
+                }
+            },
             _ => return Err(Error::ParseError { message: format!("Expected a function at: {:?}", pair.as_rule()).into() })
         }
     }
     for func in half_functions {
         blocks.push(self.build_ast_from_function(func)?);
     }
-    Ok(blocks)
+    Ok((blocks, init_statements))
 }
 
 fn build_ast_from_function(&self, function: HalfParsedAstFunction) -> Result<AstFunction, Error> {
