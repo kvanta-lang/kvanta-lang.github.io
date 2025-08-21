@@ -1,12 +1,34 @@
-func f(x: int) -> int
-{
-    circle(x, 240, 100);
+func add(x:int, y:int) -> int {
+    if (y == 0) {
+        return x;
+    }
+    rectangle(100, 100, x, 100);
+    return x + y;
 }
 
-func main() -> int
-{
-    f(320);
-    f(120);
-    f(0);
-    rectangle(100, 100, 200, 200);
+func main() {
+    circle(add(300, 20), 240, 100);
+}
+
+
+func some() { 
+  circle(320, 240, 100);
+  setFigureColor(Color::Red);
+  setLineColor(Color::Green);
+  circle(320, 240, 50);
+
+  array<int,3> letters = {1, 2, 3};
+  letters[1] = 0;
+
+
+  rectangle(100, 100, 200, 200);
+
+  setFigureColor(Color::Blue);
+  rectangle(125, 125, 175, 175);
+
+  for i in (0..10) {
+    setFigureColor(Color::Random);
+    int a = 50;
+    rectangle(0, i * a, (i+1) * a, (i+1) * a);
+  }
 }

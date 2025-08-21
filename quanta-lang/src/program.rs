@@ -12,6 +12,23 @@ pub struct Program {
     pub functions : HashMap<String, (Vec<(String, Type)>, Option<Type>, AstBlock)>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReturnType {
+    None,
+    Partial(Type),
+    Full(Type),
+}
+
+impl ReturnType {
+    pub fn t(&self) -> Option<&Type> {
+        match self {
+            ReturnType::None => None,
+            ReturnType::Partial(t) => Some(t),
+            ReturnType::Full(t) => Some(t),
+        }
+    }
+}
+
 pub fn create_program(ast: AstProgram) -> Program {
     Program {lines: ast, variables: HashMap::new(), functions: HashMap::new(), function_defs: HashMap::from([
         (String::from("circle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int)], None)),
@@ -25,9 +42,11 @@ pub fn create_program(ast: AstProgram) -> Program {
     ])}
 }
 
+
+
 impl Program {
 
-    pub fn type_check(&mut self) -> Option<Error> {
+    pub fn type_check(&mut self) -> Result<ReturnType, Error> {
         match self.lines {
             AstProgram::Block(ref block) => self.type_check_block(block.clone()),
             AstProgram::Forest(ref forest) => {
@@ -42,7 +61,6 @@ impl Program {
                         function_defs: self.function_defs.clone(),
                     };
                     for arg in &func.args {
-                        print!("Adding argument {} with type {:?} to function {}\n", arg.0, arg.1, func.name);
                         let simple_expr = {
                             match arg.1.clone() {
                                 Primitive(Int) => Expression::Value(BaseValue::Int(0)),
@@ -57,36 +75,61 @@ impl Program {
                         sub.variables.insert(arg.0.clone(), (arg.1.clone(), simple_expr));
                     }
                     if let Some(err) = sub.type_check_function(func.clone()) {
-                        return Some(err);
+                        return Err(err);
                     }
                     self.functions.insert(func.name.clone(), (func.args.clone(), func.return_type.clone(), func.block.clone()));
                 }
-                None
+                Ok(ReturnType::None)
             }
         }
     }
 
     pub fn type_check_function(&mut self, func: AstFunction) -> Option<Error> {
-        print!("Type checking function {} with args {:?} and return type {:?}\n", func.name, func.args, func.return_type);
         let mut func_prog = self.clone();
-        if let Some(err) = func_prog.type_check_block(func.block) {
-            return Some(err);
+        match func_prog.type_check_block(func.block) {
+            Ok(ReturnType::Full(t)) => {
+                if let Some(return_type) = &func.return_type {
+                    if t != *return_type {
+                        Some(Error::LogicError { message: format!("Function {} return type mismatch: expected {:?}, got {:?}", func.name, return_type, t).into() })
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(Error::LogicError { message: format!("Function {} has no return type defined, but returns {:?}", func.name, t).into() })
+                }
+            },
+            Ok(ReturnType::Partial(t)) => {
+                if let Some(return_type) = &func.return_type {
+                    if t != *return_type {
+                        return Some(Error::LogicError { message: format!("Function {} return type mismatch: expected {:?}, got {:?}", func.name, return_type, t).into() });
+                    }
+                    return Some(Error::LogicError { message: format!("Expected a return statement at the end of function {}", func.name).into() });
+                } else {
+                    return Some(Error::LogicError { message: format!("Function {} has no return type defined", func.name).into() });
+                }
+            },
+            Ok(ReturnType::None) => {
+                if let Some(rt) = func.return_type {
+                    return Some(Error::LogicError { message: format!("Function {} has a return type {:?} defined but does not return anything", func.name, rt).into() });
+                }
+                None
+            },
+            Err(err) => return Some(err),   
         }
-        None
     }
 
-    pub fn type_check_block(&mut self, block : AstBlock) -> Option<Error> {
+    pub fn type_check_block(&mut self, block : AstBlock) -> Result<ReturnType, Error> {
+        let mut return_type: Option<Type> = None;
         for line in block.nodes {
             match line {
                 AstNode::Command { name, args } => {
-                    print!("Command {} knows about variables: {:?}\n", name, self.variables);
                     if let Some(err) = self.clone().type_check_command(name.clone(), args.clone()) {
-                        return Some(err);
+                        return Err(err);
                     }
                 },
                 AstNode::Init { typ, val, expr } => {
                      match self.clone().type_check_init(typ.clone(), val.clone(), expr.clone()) {
-                        Err(err) => return Some(err),
+                        Err(err) => return Err(err),
                         Ok(tupl) => {
                             self.variables.insert(val.clone().trim().to_string(), tupl);
                         }
@@ -94,36 +137,100 @@ impl Program {
                 },
                 AstNode::SetVal { val, expr } => {
                     match self.clone().type_check_set_val(val.clone(), expr.clone()) {
-                        Err(err) => return Some(err),
+                        Err(err) => return Err(err),
                         Ok((var_type, expr)) => {
                             self.variables.insert(val.to_string(), (var_type, expr));
                         }
                     }
                 },
                 AstNode::If { clause, block, else_block } => {
-                    if let Some(err) = self.clone().type_check_if(clause.clone(), block.clone(), else_block.clone()) {
-                        return Some(err);
+                    match self.clone().type_check_if(clause.clone(), block.clone(), else_block.clone())? {   
+                        ReturnType::None => {},
+                        ReturnType::Partial(t) => {
+                            if let Some(rt) = &return_type {
+                                if *rt != t {
+                                    return Err(Error::LogicError { message: format!("If block return type mismatch: expected {:?}, got {:?}", rt, t).into() });
+                                }
+                            } else {
+                                return_type = Some(t);
+                            }
+                        },
+                        ReturnType::Full(t) => {
+                            if let Some(rt) = &return_type {
+                                if *rt != t {
+                                    return Err(Error::LogicError { message: format!("If block return type mismatch: expected {:?}, got {:?}", rt, t).into() });
+                                }
+                            }
+                            return Ok(ReturnType::Full(t));
+                        }
                     }
                 },
                 AstNode::For { val, from, to, block } => {
-                    if let Some(err) = self.clone().type_check_for(val.clone(), from.clone(), to.clone(), block.clone()) {
-                        return Some(err);
+                    match self.clone().type_check_for(val.clone(), from.clone(), to.clone(), block.clone())? {
+                        ReturnType::None => {},
+                        ReturnType::Partial(t) => {
+                            if let Some(rt) = &return_type {
+                                if *rt != t {
+                                    return Err(Error::LogicError { message: format!("For block return type mismatch: expected {:?}, got {:?}", rt, t).into() });
+                                }
+                            } else {
+                                return_type = Some(t);
+                            }
+                        },
+                        ReturnType::Full(t) => {
+                            if let Some(rt) = &return_type {
+                                if *rt != t {
+                                    return Err(Error::LogicError { message: format!("For block return type mismatch: expected {:?}, got {:?}", rt, t).into() });
+                                }
+                            }
+                            return Ok(ReturnType::Full(t));
+                        }
                     }
                 },
                 AstNode::While { clause, block } => {
-                    if let Some(err) = self.clone().type_check_while(clause.clone(), block.clone()) {
-                        return Some(err);
+                    match self.clone().type_check_while(clause.clone(), block.clone())? {
+                        ReturnType::None => {},
+                        ReturnType::Partial(t) => {
+                            if let Some(rt) = &return_type {
+                                if *rt != t {
+                                    return Err(Error::LogicError { message: format!("For block return type mismatch: expected {:?}, got {:?}", rt, t).into() });
+                                }
+                            } else {
+                                return_type = Some(t);
+                            }
+                        },
+                        ReturnType::Full(t) => {
+                            if let Some(rt) = &return_type {
+                                if *rt != t {
+                                    return Err(Error::LogicError { message: format!("For block return type mismatch: expected {:?}, got {:?}", rt, t).into() });
+                                }
+                            }
+                            return Ok(ReturnType::Full(t));
+                        }
                     }
                 }
+                AstNode::Return { expr } => {
+                    let expr_type = self.clone().type_check_expr(&expr)?;
+                    if let Some(rt) = &return_type {
+                        if *rt != expr_type {
+                            return Err(Error::LogicError { message: format!("Return type mismatch: expected {:?}, got {:?}", rt, expr_type).into() });
+                        }
+                    }
+                    return Ok(ReturnType::Full(expr_type))
+                },
             }
         }
-        None
+        if let Some(rt) = &return_type {
+            Ok(ReturnType::Partial(rt.clone()))
+        } else {
+            Ok(ReturnType::None)
+        }
     }
 
 
     fn type_check_command(&self, name : String, args : Vec<Expression>) -> Option<Error> {
-        print!("Type checking command {} with args {:?}\n", name, args);
-        if let Some((params, return_type)) = self.function_defs.get(&name) {
+        // todo warning unused return type
+        if let Some((params, _)) = self.function_defs.get(&name) {
             if name == "polygon" {
                 if args.len() < 6 || args.len() % 2 != 0 {
                     return Some(Error::LogicError { message: format!("Wrong number of arguments for command polygon: got {}, expected at least 6 (even number) for polygon", args.len()).into() });
@@ -181,70 +288,62 @@ impl Program {
         }
     }
 
-    fn type_check_if(&self, clause : Expression, block : AstBlock, else_block : Option<AstBlock>) -> Option<Error> {
-        match self.clone().type_check_expr(&clause) {
-            Err(error) => return Some(error),
-            Ok(clause_type) => {
-                if clause_type != Primitive(Bool) {
-                    return Some(Error::LogicError { message: format!("If clause must be a bool expression").into() })
-                }
-                let mut if_prog = self.clone();
-                if_prog.lines = AstProgram::Block(block);
-                if let Some(err) = if_prog.type_check() {
-                    return Some(err);
-                }
-                if let Some(else_lines) = else_block {
-                    let mut else_prog = self.clone();
-                    else_prog.lines = AstProgram::Block(else_lines);
-                    if let Some(err) = else_prog.type_check() {
-                        return Some(err);
-                    }
-                }
+    fn type_check_if(&self, clause : Expression, block : AstBlock, else_block : Option<AstBlock>) -> Result<ReturnType, Error> {
+        let clause_type = self.clone().type_check_expr(&clause)?;
+             
+        if clause_type != Primitive(Bool) {
+            return Err(Error::LogicError { message: format!("If clause must be a bool expression").into() })
+        }
+        let mut if_prog = self.clone();
+        if_prog.lines = AstProgram::Block(block);
+        let if_type = if_prog.type_check()?;
+
+        if matches!(else_block, None) {
+            if let ReturnType::Full(t) = if_type {
+                return Ok(ReturnType::Partial(t));
+            }
+            return Ok(if_type);
+        }
+
+        let else_block = else_block.unwrap();
+        let mut else_prog = self.clone();
+        else_prog.lines = AstProgram::Block(else_block);
+        let else_type = else_prog.type_check()?;
+
+        if let (Some(t1), Some(t2)) = (if_type.t(), else_type.t()) {
+            if t1 != t2 {
+                return Err(Error::LogicError { message: format!("Return type of if and else block must match: {:?} != {:?}", t1, t2).into() });
             }
         }
-    
-        None
+
+        if if_type == else_type {
+            return Ok(if_type);
+        }
+
+        return Ok(ReturnType::Partial(if_type.t().unwrap().clone()));
+        
     }
 
-    fn type_check_for(&self, val : String, from : BaseValue, to : BaseValue, block : AstBlock) -> Option<Error> {
-        match self.clone().type_check_baseval(&from) {
-            Err(error) => return Some(error),
-            Ok(t) => {
-                match  self.clone().type_check_baseval(&to) {
-                    Err(error) => return Some(error),
-                    Ok(f) => {
-                        if t != f || t != Primitive(Int) {
-                            return Some(Error::LogicError { message: format!("For loop range can only be integer values").into() })  
-                        }
-                        let mut for_prog = self.clone();
-                        for_prog.lines = AstProgram::Block(block);
-                        for_prog.variables.insert(val, (Primitive(Int), Expression::Value(from)));
-                        if let Some(err) = for_prog.type_check() {
-                            return Some(err);
-                        }
-                    }
-                }
-            }
+    fn type_check_for(&self, val : String, from : BaseValue, to : BaseValue, block : AstBlock) -> Result<ReturnType, Error> {
+        let t = self.clone().type_check_baseval(&from)?;
+        let f = self.clone().type_check_baseval(&to)?;
+        if t != f || t != Primitive(Int) {
+            return Err(Error::LogicError { message: format!("For loop range can only be integer values").into() })  
         }
-        None
+        let mut for_prog = self.clone();
+        for_prog.lines = AstProgram::Block(block);
+        for_prog.variables.insert(val, (Primitive(Int), Expression::Value(from)));
+        for_prog.type_check()
     }
 
-    fn type_check_while(&self, clause : Expression, block : AstBlock) -> Option<Error> {
-        match  self.clone().type_check_expr(&clause) {
-            Err(error) => return Some(error),
-            Ok(clause_type) => {
-                if clause_type != Primitive(Bool) {
-                    return Some(Error::LogicError { message: format!("While clause must be a bool expression").into() })
-                }
-                let mut while_prog = self.clone();
-                while_prog.lines = AstProgram::Block(block);
-                if let Some(err) = while_prog.type_check() {
-                    return Some(err);
-                }
-            }
+    fn type_check_while(&self, clause : Expression, block : AstBlock) -> Result<ReturnType, Error> {
+        let clause_type = self.clone().type_check_expr(&clause)?;
+        if clause_type != Primitive(Bool) {
+            return Err(Error::LogicError { message: format!("While clause must be a bool expression").into() });
         }
-    
-        None
+        let mut while_prog = self.clone();
+        while_prog.lines = AstProgram::Block(block);
+        while_prog.type_check()
     }
 
     fn type_check_expr(&self, expr : &Expression) -> Result<Type, Error> {
@@ -347,6 +446,9 @@ impl Program {
                     return Err(Error::TypeError { message: format!("Array elements must all be of type {:?}, got {:?}", inner_type, types).into() });
                 }
                 Ok(Array(Box::new(Some(inner_type.clone())), arr.len()))
+            },
+            BaseValue::FunctionCall(_,_, return_type ) => {
+                return Ok(return_type.clone());
             }
         }
     }

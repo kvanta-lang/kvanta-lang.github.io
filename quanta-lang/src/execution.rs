@@ -1,4 +1,4 @@
-use std::collections::{HashMap};
+use std::{collections::HashMap};
 
 use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, BaseValue, Expression, Operator, Type, UnaryOperator, VariableCall}, error::Error};
 
@@ -18,8 +18,28 @@ pub struct Execution {
 
 fn color_to_str(r: &u8, g : &u8, b: &u8) -> String {
     let s = format!("#{:02x}{:02x}{:02x}", r, g, b);
-    print!("Color to str: {}", &s);
     s
+}
+
+macro_rules! expect_arg {
+    // Варіант із полями: BaseValue::Variant(pats...)
+    ($fname:expr, $vals:expr, $idx:expr, $Variant:ident ( $($pat:pat),* ) => $build:expr) => {{
+        let __arg_index = $idx; // збережемо, щоб не обчислювати двічі
+        match &$vals[__arg_index] {
+            BaseValue::$Variant($($pat),*) => { $build }
+            other => {
+                return Err(Error::RuntimeError {
+                    message: format!(
+                        "{}: arg #{}: Expected argument type {} but got {}",
+                        $fname,
+                        __arg_index,            
+                        stringify!($Variant),
+                        other.get_type().to_string()
+                    ).into(),
+                });
+            }
+        }
+    }};
 }
 
 impl Execution {
@@ -68,43 +88,39 @@ impl Execution {
         }
     }
 
-    fn execute_function(&mut self, function_name: &str, args: Vec<Expression>) -> Option<Error>{
+    fn execute_function(&mut self, function_name: &str, args: Vec<Expression>) -> Result<Option<BaseValue>, Error>{
         let mut vals : Vec<BaseValue> = vec![];
         for arg in args {
-            let val = self.calculate_expression(arg);
-            if let Err(err) = val {
-                return Some(err);
-            } else {
-                vals.push(val.unwrap());
-            }
+            let val = self.calculate_expression(arg)?;
+            vals.push(val);
         }
-        use BaseValue::*;
         match function_name {
             "circle" => {
-                print!("Print circle!!!");
-                // todo return good type error
-                if let (Int(x), Int(y), Int(r)) = (&vals[0], &vals[1], &vals[2]) {
-                    self.canvas.add_command(format!("circle {} {} {} fill={} stroke={} width={}", x, y, r, self.figure_color, self.line_color, self.line_width));
-                    None
-                } else {
-                    Some(Error::RuntimeError { message: "Incorrect arguments for circle function!".into() })
-                }
+                let x1 = expect_arg!("circle", vals, 0, Int(v) => *v);
+                let y1 = expect_arg!("circle", vals, 1, Int(v) => *v);
+                let r = expect_arg!("circle", vals, 2, Int(v) => *v);
+
+                self.canvas.add_command(format!("circle {} {} {} fill={} stroke={} width={}", x1, y1, r, self.figure_color, self.line_color, self.line_width));
+                Ok(None)
             },
             "line" => {
-                if let (Int(x1), Int(y1), Int(x2), Int(y2)) = (&vals[0], &vals[1], &vals[2], &vals[3]) {
-                    self.canvas.add_command(format!("line {} {} {} {} stroke={} width={}", x1, y1, x2, y2, self.line_color, self.line_width));
-                    None
-                } else {
-                    Some(Error::RuntimeError { message: "Incorrect arguments for line function!".into() })
-                }
+
+                let x1 = expect_arg!("line", vals, 0, Int(v) => *v);
+                let y1 = expect_arg!("line", vals, 1, Int(v) => *v);
+                let x2 = expect_arg!("line", vals, 2, Int(v) => *v);
+                let y2 = expect_arg!("line", vals, 3, Int(v) => *v);
+
+                self.canvas.add_command(format!("line {} {} {} {} stroke={} width={}", x1, y1, x2, y2, self.line_color, self.line_width));
+                Ok(None)
             },
             "rectangle" => {
-                if let (Int(x1), Int(y1), Int(x2), Int(y2)) = (&vals[0], &vals[1], &vals[2], &vals[3]) {
-                    self.canvas.add_command(format!("rectangle {} {} {} {} fill={} stroke={} width={}", x1, y1, x2, y2, self.figure_color, self.line_color, self.line_width));
-                    None
-                } else {
-                    Some(Error::RuntimeError { message: "Incorrect arguments for rectangle function!".into() })
-                }
+                let x1 = expect_arg!("rectangle", vals, 0, Int(v) => *v);
+                let y1 = expect_arg!("rectangle", vals, 1, Int(v) => *v);
+                let x2 = expect_arg!("rectangle", vals, 2, Int(v) => *v);
+                let y2 = expect_arg!("rectangle", vals, 3, Int(v) => *v);
+                
+                self.canvas.add_command(format!("rectangle {} {} {} {} fill={} stroke={} width={}", x1, y1, x2, y2, self.figure_color, self.line_color, self.line_width));
+                Ok(None)
             },
             "polygon" => {
                 let mut nums = String::new();
@@ -112,85 +128,87 @@ impl Execution {
                     if let BaseValue::Int(num) = val {
                         nums.push_str(&format!("{} ", num));
                     } else {
-                        return Some(Error::RuntimeError { message: "Incorrect arguments for polygon function!".into() });
+                        return Err(Error::RuntimeError { message: "Incorrect arguments for polygon function!".into() });
                     }
                 }
                 self.canvas.add_command(format!("polygon {} fill={} stroke={} width={}", nums.trim(), self.figure_color, self.line_color, self.line_width));
-                None
+                Ok(None)
             },
             "arc" => {
-                if let (Int(x), Int(y), Int(r), Int(start), Int(end)) = (&vals[0], &vals[1], &vals[2], &vals[3], &vals[4]) {
-                    self.canvas.add_command(format!("arc {} {} {} {} {} fill={} stroke={} width={}", x, y, r, start, end, self.figure_color, self.line_color, self.line_width));
-                    None
-                } else {
-                    Some(Error::RuntimeError { message: "Incorrect arguments for arc function!".into() })
-                }
+                let x = expect_arg!("arc", vals, 0, Int(v) => *v);
+                let y = expect_arg!("arc", vals, 1, Int(v) => *v);
+                let r = expect_arg!("arc", vals, 2, Int(v) => *v);
+                let start = expect_arg!("arc", vals, 3, Int(v) => *v);
+                let end = expect_arg!("arc", vals, 4, Int(v) => *v);
+
+                self.canvas.add_command(format!("arc {} {} {} {} {} fill={} stroke={} width={}", x, y, r, start, end, self.figure_color, self.line_color, self.line_width));
+                Ok(None)
             },
             "setLineColor" => {
                 if let BaseValue::Color(r,g,b) = &vals[0] {
                     self.line_color = color_to_str(r, g, b);
-                    None
+                    Ok(None)
                 }
                 else if let BaseValue::RandomColor = &vals[0] {
                     let r = (255.0 * Math::random()) as u8;
                     let g = (255.0 * Math::random()) as u8;
                     let b = (255.0 * Math::random()) as u8;
                     self.line_color = color_to_str(&r, &g, &b);
-                    None
+                    Ok(None)
                 }
                 else {
-                    Some(Error::RuntimeError { message: "Incorrect arguments for setLineColor function!".into() })
+                    Err(Error::RuntimeError { message: format!("Incorrect arguments for setLineColor function: expected a color, got {:?}!", &vals[0]).into() })
                 }
             },
             "setFigureColor" => {
                 if let BaseValue::Color(r,g,b) = &vals[0] {
                     self.figure_color = color_to_str(r, g, b);
-                    None
+                    Ok(None)
                 }
                 else if let BaseValue::RandomColor = &vals[0] {
                     let r = (255.0 * Math::random()) as u8;
                     let g = (255.0 * Math::random()) as u8;
                     let b = (255.0 * Math::random()) as u8;
                     self.figure_color = color_to_str(&r, &g, &b);
-                    None
+                    Ok(None)
                 }
                 else {
-                    Some(Error::RuntimeError { message: "Incorrect arguments for setFigureColor function!".into() })
+                    Err(Error::RuntimeError { message: format!("Incorrect arguments for setFigureColor function: expected a color, got {:?}!", &vals[0]).into() })
                 }
             },
             "setLineWidth" => {
-                if let BaseValue::Int(width) = &vals[0] {
-                    if *width >= 0 {
-                        self.line_width = *width;
-                        None
-                    } else {
-                        Some(Error::RuntimeError { message: "Line width can't be negative!".into() })
-                    }
+                let width = expect_arg!("setLineWidth", vals, 0, Int(width) => *width);
+                if width >= 0 {
+                    self.line_width = width;
+                    Ok(None)
                 } else {
-                    Some(Error::RuntimeError { message: "Incorrect arguments for setLineWidth function!".into() })
+                    Err(Error::RuntimeError { message: "Line width can't be negative!".into() })
                 }
             },
             name => {
                 if self.functions.contains_key(name) {
-                    let (params, return_type, body) = self.functions.get(name).unwrap();
+                    let (params, _, body) = self.functions.get(name).unwrap();
                     if params.len() != vals.len() {
-                        return Some(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
+                        return Err(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
                     }
                     let mut new_exec = self.clone();
                     new_exec.canvas = Canvas::default();
                     for (i, param) in params.iter().enumerate() {
-                        print!("For function {} Setting variable {} to {:?}", name, param.0, vals[i]);
+                        //println!("For function {} Setting variable {} to {:?}\n", name, param.0, vals[i]);
                         new_exec.variables.insert(param.0.clone(), vals[i].clone());
                     }
-                    if let Some(err) = new_exec.execute_commands(body.nodes.clone()) {
-                        return Some(err);
+                    if let Some(return_value) = new_exec.execute_commands(body.nodes.clone())? {
+                        for command in new_exec.canvas.get_commands().iter() {
+                            self.canvas.add_command(command.clone());
+                        }
+                        return Ok(Some(return_value));
                     }
                     for command in new_exec.canvas.get_commands().iter() {
                         self.canvas.add_command(command.clone());
                     }
-                    return None;
+                    return Ok(None);
                 }
-                Some(Error::RuntimeError { message: format!("Unknown function: {}", function_name).into() })
+                Err(Error::RuntimeError { message: format!("Unknown function: {}", function_name).into() })
             }
         }
     }
@@ -226,7 +244,6 @@ impl Execution {
 
 
     pub fn from_program(prog : Program) -> Execution {
-        print!("Creating execution with functions: {:?}", prog.functions);
         Execution {
             lines : prog.lines.clone(),
             variables : HashMap::new(),
@@ -250,7 +267,7 @@ impl Execution {
     pub fn execute(&mut self) -> Message {
         match self.lines {
             AstProgram::Block(ref block) => {
-                if let Some(err) = self.execute_commands(block.nodes.clone()) {
+                if let Err(err) = self.execute_commands(block.nodes.clone()) {
                     return Message::create_error_message(err);
                 }
                 Message::from_canvas(self.canvas.clone())
@@ -258,7 +275,7 @@ impl Execution {
             AstProgram::Forest(ref funcs) => {
                 for func in funcs {
                     if func.name == "main" {
-                        if let Some(err) = self.execute_commands(func.block.nodes.clone()) {
+                        if let Err(err) = self.execute_commands(func.block.nodes.clone()) {
                             return Message::create_error_message(err);
                         }
                         return Message::from_canvas(self.canvas.clone());
@@ -270,41 +287,36 @@ impl Execution {
         
     }
 
-    pub fn execute_commands(&mut self, nodes : Vec<AstNode>) -> Option<Error> {
+    pub fn execute_commands(&mut self, nodes : Vec<AstNode>) -> Result<Option<BaseValue>, Error> {
         for line in nodes {
             match line {
                 AstNode::Command { name, args } => {
-                    if let Some(err) = self.execute_function(&name, args) {
-                       return Some(err);
-                    }
+                    self.execute_function(&name, args)?;
                 },
                 AstNode::Init { typ : _, val, expr } => {
                     if let Some(err) = self.execute_init(val, expr) {
-                        return Some(err);
+                        return Err(err);
                     }
                 }
                 AstNode::SetVal { val, expr } => {
                     if let Some(err) = self.execute_set(&val, expr) {
-                        return Some(err);
+                        return Err(err);
                     }
                 }
                 
                 AstNode::If { clause, block, else_block } => {
-                    let val = self.calculate_expression(clause);
-                    match val {
-                        Ok(BaseValue::Bool(t)) => {
-                            let mut new_exec = self.clone();
-                            if t {
-                                new_exec.execute_commands(block.nodes);
-                            } else if else_block.is_some() {
-                                new_exec.execute_commands(else_block.unwrap().nodes);
+                    if let BaseValue::Bool(val) = self.calculate_expression(clause)? {
+                        if val {
+                            if let Some(return_value) = self.execute_commands(block.nodes)? {
+                                return Ok(Some(return_value));
                             }
-                            self.canvas = new_exec.canvas;
+                        } else if let Some(else_block) = else_block {
+                            if let Some(return_value) = self.execute_commands(else_block.nodes)? {
+                                return Ok(Some(return_value));
+                            }
                         }
-                        Err(err) => {
-                            return Some(err);
-                        }
-                        _ => unreachable!("Unexpected code 1")
+                    } else {
+                        return Err(Error::RuntimeError { message: "If clause must be a boolean expression".into() });
                     }
                 },
                 AstNode::While { clause, block } => {
@@ -314,7 +326,11 @@ impl Execution {
                             Ok(BaseValue::Bool(t)) => {
                                 if t {
                                     let mut new_exec = self.clone();
-                                    new_exec.execute_commands(block.nodes.clone());
+                                    if let Some(return_value) = new_exec.execute_commands(block.nodes.clone())? {
+                                        self.update_variables(&new_exec);
+                                        self.canvas = new_exec.canvas;
+                                        return Ok(Some(return_value));
+                                    }
                                     self.update_variables(&new_exec);
                                     self.canvas = new_exec.canvas;
                                 } else {
@@ -322,38 +338,46 @@ impl Execution {
                                 }
                             }
                             Err(err) => {
-                                return Some(err);
+                                return Err(err);
                             }
                             _ => unreachable!("Unexpected code 2")
                         }
                     }
                 },
                 AstNode::For { val, from, to, block } => {
-                    if let BaseValue::Int(f) = from {
-                        if let BaseValue::Int(t) = to {
-                            if f <= t {
-                                for cycle in f..=t {
-                                    self.execute_for(val.clone(), cycle, block.clone());
+                    if let BaseValue::Int(f_) = from {
+                        if let BaseValue::Int(t_) = to {
+                            let (f,t) = {
+                                if f_ <= t_ {
+                                    (f_, t_)
+                                } else {
+                                    (t_, f_)
                                 }
-                            } else {
-                                for cycle in (t..=f).rev() {
-                                    self.execute_for(val.clone(), cycle, block.clone());
+                            };
+                            for cycle in f..=t {
+                                if let Some(return_value) = self.execute_for(val.clone(), cycle, block.clone()) ?{
+                                    return Ok(Some(return_value));
                                 }
-                            }                       
+                            }                    
                         }
                     }
                 },
+                AstNode::Return { expr } => {
+                    let val = self.calculate_expression(expr)?;
+                    return Ok(Some(val.clone()))
+                },
             }
         }
-        None
+        Ok(None)
     }
 
-    fn execute_for(&mut self, val: String, cycle : i32, block : AstBlock) {
+    fn execute_for(&mut self, val: String, cycle : i32, block : AstBlock) -> Result<Option<BaseValue>, Error> {
         self.execute_init(val, Expression::Value(BaseValue::Int(cycle)));
         let mut new_exec = self.clone();
-        new_exec.execute_commands(block.nodes.clone());
+        let result = new_exec.execute_commands(block.nodes.clone());
         self.update_variables(&new_exec);
         self.canvas = new_exec.canvas;
+        result        
     }
 
     fn calculate_expression(&mut self, expr: Expression) -> Result<BaseValue, Error> {
@@ -363,6 +387,32 @@ impl Execution {
                     BaseValue::Id(var) => {
                         self.get_variable(&var).cloned()
                     },
+                    BaseValue::FunctionCall(name, exprs, _ ) => {
+                        let mut vals = vec![];
+                        for expr in exprs {
+                            let val = self.calculate_expression(expr)?;
+                            vals.push(val);
+                        }
+                        if let Some((params, _, body)) = self.functions.get(&name) {
+                            let mut new_exec = self.clone();
+                            for (i, (name, _)) in params.iter().enumerate() {
+                                if i < vals.len() {
+                                    new_exec.variables.insert(name.clone(), vals[i].clone());
+                                } else {
+                                    return Err(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
+                                }
+                            }
+                            if let Some(return_value) = new_exec.execute_commands(body.nodes.clone())? {
+                                self.canvas = new_exec.canvas;
+                                return Ok(return_value);
+                            }
+                            for command in new_exec.canvas.get_commands().iter() {
+                                self.canvas.add_command(command.clone());
+                            }
+                            return Err(Error::RuntimeError { message: format!("Function {} didn't return a value", name).into() });
+                        }
+                        Err(Error::RuntimeError { message: format!("Unknown function: {}", name).into() })
+                    }
                     x => Ok(x)
                 }
             },

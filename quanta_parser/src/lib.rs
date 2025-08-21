@@ -1,10 +1,9 @@
 
-use ast::builder::build_ast_from_doc;
 use error::Error;
 use pest::Parser;
 use pest_derive::Parser;
 
-use crate::ast::AstProgram;
+use crate::ast::{builder::AstBuilder, AstProgram};
 pub mod ast;
 pub mod error;
 
@@ -14,8 +13,9 @@ pub struct QuantaParser;
 
 pub fn parse_ast(source : &str) -> Result<AstProgram, Error> {
     let parsed_doc = QuantaParser::parse(Rule::document, source);
+    let mut builder = AstBuilder::new();
     match parsed_doc {
-        Ok(doc) => build_ast_from_doc(doc),
+        Ok(doc) => builder.build_ast_from_doc(doc),
         Err(err) => Err(Error::from_pest_error(err))
     }
 }
@@ -45,10 +45,10 @@ mod tests {
         let res = parse_ast(contents.as_str());
         match &res {
             Ok(_ast) => {},
-            Err(Error::ParseError{message}) => {print!("{}", message.to_string())}
-            Err(Error::LogicError{message}) => {print!("{}", message.to_string())}
-            Err(Error::TypeError{message}) => {print!("{}", message.to_string())}
-            Err(Error::RuntimeError{message}) => {print!("{}", message.to_string())}
+            Err(Error::ParseError{message}) => {println!("{}", message.to_string())}
+            Err(Error::LogicError{message}) => {println!("{}", message.to_string())}
+            Err(Error::TypeError{message}) => {println!("{}", message.to_string())}
+            Err(Error::RuntimeError{message}) => {println!("{}", message.to_string())}
         }
         assert!(res.is_ok());
     }

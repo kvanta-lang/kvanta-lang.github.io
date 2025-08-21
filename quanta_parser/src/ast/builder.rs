@@ -1,10 +1,23 @@
+use std::collections::HashMap;
+
 use pest::iterators::{Pairs, Pair};
-use crate::{ast::{AstFunction, AstProgram, SimpleExpression, SimpleValue, VariableCall}, error::Error, Rule};
+use crate::{ast::{AstFunction, AstProgram, HalfParsedAstFunction, SimpleExpression, SimpleValue, VariableCall}, error::Error, Rule};
 
 
 use super::{AstBlock, AstNode, Expression, Operator,  BaseType, Type, BaseValue, goes_before, UnaryOperator };
 
-pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstProgram, Error> {
+pub struct AstBuilder {
+    pub function_signatures : HashMap<String, Option<Type>>
+}
+
+impl AstBuilder {
+
+pub fn new() -> AstBuilder
+{
+    AstBuilder{ function_signatures: HashMap::new() }
+}
+
+pub fn build_ast_from_doc(&mut self, docs: Pairs<Rule>) -> Result<AstProgram, Error> {
     assert!(docs.len() == 1);
     let doc = docs.into_iter().next().unwrap();
     assert!(doc.as_rule() == Rule::document);
@@ -16,26 +29,38 @@ pub fn build_ast_from_doc(docs: Pairs<Rule>) -> Result<AstProgram, Error> {
 
     assert!(eof_rule.as_rule() == Rule::EOI);
     if block_rule.as_rule() == Rule::block {
-        Ok(AstProgram::Block(build_ast_from_block(block_rule.into_inner())?))
+        Ok(AstProgram::Block(self.build_ast_from_block(block_rule.into_inner())?))
     } else {
-        Ok(AstProgram::Forest(build_ast_from_forest(block_rule.into_inner())?))
+        Ok(AstProgram::Forest(self.build_ast_from_forest(block_rule.into_inner())?))
     }    
 }
 
-fn build_ast_from_forest(statements: Pairs<Rule>) -> Result<Vec<AstFunction>, Error> {
+fn build_ast_from_forest(&mut self, statements: Pairs<Rule>) -> Result<Vec<AstFunction>, Error> {
+    let mut half_functions = vec![];
     let mut blocks : Vec<AstFunction> = vec![];
-    for pair in statements {
+    for pair in statements.clone() {
         match pair.as_rule() {
             Rule::function => {
-                blocks.push(build_ast_from_function(pair.into_inner())?);
+                let res = self.get_function_signature(pair.into_inner())?;
+                self.function_signatures.insert(res.name.clone(), res.return_type.clone());
+                half_functions.push(res);
             }
             _ => return Err(Error::ParseError { message: format!("Expected a function at: {:?}", pair.as_rule()).into() })
         }
     }
+    for func in half_functions {
+        blocks.push(self.build_ast_from_function(func)?);
+    }
     Ok(blocks)
 }
 
-fn build_ast_from_function(statement: Pairs<Rule>) -> Result<AstFunction, Error> {
+fn build_ast_from_function(&self, function: HalfParsedAstFunction) -> Result<AstFunction, Error> {
+    let body = self.build_ast_from_block(function.statements)?;
+    Ok(AstFunction{name: function.name, args: function.args, return_type: function.return_type, block: body})
+}
+
+
+fn get_function_signature<'a>(&self, statement: Pairs<'a, Rule>) -> Result<HalfParsedAstFunction<'a>, Error> {
     let mut iter = statement.into_iter();
     let header = iter.next().unwrap();
     assert!(header.as_rule() == Rule::fn_header);
@@ -43,33 +68,40 @@ fn build_ast_from_function(statement: Pairs<Rule>) -> Result<AstFunction, Error>
     assert!(body.as_rule() == Rule::block);
 
     let mut header_iter = header.into_inner().into_iter();
-    let name = build_ast_from_ident(header_iter.next().unwrap())?;
+    let name = self.build_ast_from_ident(header_iter.next().unwrap())?;
     let mut args = vec![];
     let args_iter = header_iter.next().unwrap().into_inner().into_iter();
     for arg in args_iter {
         let mut arg_iter = arg.into_inner().into_iter();
-        let arg_name = build_ast_from_ident(arg_iter.next().unwrap())?;
-        let arg_type = build_ast_from_type(arg_iter.next().unwrap())?;
+        let arg_name = self.build_ast_from_ident(arg_iter.next().unwrap())?;
+        let arg_type = self.build_ast_from_type(arg_iter.next().unwrap())?;
         args.push((arg_name, arg_type));
     }
     let typer = {
         if let Some(x) = header_iter.next() {
-            build_ast_from_type(x)?;
+            assert!(x.as_rule() == Rule::type_name);
+            let typed = self.build_ast_from_type(x)?;
+            Some(typed)
+        } else {
+            None
         }
-        None
     };
     
-    let block = build_ast_from_block(body.into_inner())?;
-    Ok(AstFunction { name: name, args: args, return_type: typer, block: block })
+    Ok(HalfParsedAstFunction { 
+        name, 
+        args, 
+        return_type: typer, 
+        statements: body.into_inner()
+    })
 
 }
 
-fn build_ast_from_block(statements: Pairs<Rule>) -> Result<AstBlock, Error> {
+fn build_ast_from_block(&self, statements: Pairs<Rule>) -> Result<AstBlock, Error> {
     let mut block = AstBlock{ nodes: vec![] };
     for pair in statements {
         match pair.as_rule() {
             Rule::statement => {
-                block.nodes.push(build_ast_from_statement(pair.into_inner())?);
+                block.nodes.push(self.build_ast_from_statement(pair.into_inner())?);
             }
             _ => unreachable!("Unexpected code 6")
         }
@@ -77,46 +109,45 @@ fn build_ast_from_block(statements: Pairs<Rule>) -> Result<AstBlock, Error> {
     Ok(block)
 }
 
-fn build_ast_from_statement(statement: Pairs<Rule>) -> Result<AstNode, Error> {
+fn build_ast_from_statement(&self, statement: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = statement.into_iter();
     let state = iter.next().unwrap();
     match state.as_rule() {
-        Rule::command => build_ast_from_command(state.into_inner()),
-        Rule::init_statement => build_ast_from_init(state.into_inner()),
-        Rule::if_statement => build_ast_from_if(state.into_inner()),
-        Rule::for_statement => build_ast_from_for(state.into_inner()),
-        Rule::while_statement => build_ast_from_while(state.into_inner()),
+        Rule::command => self.build_ast_from_command(state.into_inner()),
+        Rule::init_statement => self.build_ast_from_init(state.into_inner()),
+        Rule::if_statement => self.build_ast_from_if(state.into_inner()),
+        Rule::for_statement => self.build_ast_from_for(state.into_inner()),
+        Rule::while_statement => self.build_ast_from_while(state.into_inner()),
         Rule::return_statement => {
-            let expr = build_ast_from_expression(iter.next().unwrap())?;
-            Ok(AstNode::Command { name: "return".to_string(), args: vec![expr] })
+            let expr = self.build_ast_from_expression(state.into_inner().into_iter().next().unwrap())?;
+            Ok(AstNode::Return { expr: expr })
         }
         _ => unreachable!("Unexpected code 7")
     }
 }
 
-fn build_ast_from_command(command: Pairs<Rule>) -> Result<AstNode, Error> {
-    let mut iter = command.into_iter();
-    let name = build_ast_from_ident(iter.next().unwrap())?;
-    let args = build_ast_from_arglist(iter)?;
-    print!("Building command {} with args {:?}\n", name, args);
+fn build_ast_from_command(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {
+    let mut iter = command.into_iter().next().unwrap().into_inner().into_iter();
+    let name = self.build_ast_from_ident(iter.next().unwrap())?;
+    let args = self.build_ast_from_arglist(iter)?;
     return Ok(AstNode::Command { 
         name: name,
         args: args
     });
 }
 
-fn build_ast_from_ident(ident: Pair<Rule>) -> Result<String, Error> {
+fn build_ast_from_ident(&self, ident: Pair<Rule>) -> Result<String, Error> {
     Ok(String::from(ident.as_str().trim()))
 }
 
-fn build_ast_from_noun(ident: Pair<Rule>) -> Result<VariableCall, Error> {
+fn build_ast_from_noun(&self, ident: Pair<Rule>) -> Result<VariableCall, Error> {
     if ident.as_rule() == Rule::noun {
         let mut ident = ident.into_inner().into_iter();
         if let Some(name) = ident.next() {
             if ident.clone().count() > 0 {
                 let mut args = vec![];
                 for arg in ident {
-                    args.push(build_ast_for_simple_expression(arg.into_inner().into_iter().next().unwrap())?);
+                    args.push(self.build_ast_for_simple_expression(arg.into_inner().into_iter().next().unwrap())?);
                 }
                 return Ok(VariableCall::ArrayCall(String::from(name.as_str()), args));
             }
@@ -127,30 +158,30 @@ fn build_ast_from_noun(ident: Pair<Rule>) -> Result<VariableCall, Error> {
     Err(Error::ParseError { message: format!("Expected identifier, found: {}", ident.as_str()).into() })
 }
 
-fn build_ast_from_arglist(args: Pairs<Rule>) -> Result<Vec<Expression>, Error> {
+fn build_ast_from_arglist(&self, args: Pairs<Rule>) -> Result<Vec<Expression>, Error> {
     let mut expressions = vec![];
     for pair in args {
-        expressions.push(build_ast_from_expression(pair)?);
+        expressions.push(self.build_ast_from_expression(pair)?);
     }
     Ok(expressions)
 }
 
-fn improve_expr(expr : Expression) -> (Expression, bool) {
+fn improve_expr(&self, expr : Expression) -> (Expression, bool) {
     match expr {
         Expression::Value(_) => (expr, false),
         Expression::Unary(_, _) => (expr, false),
         Expression::Binary(op, left, right) => {
             let mut new_left : Expression = *left;
             if let Expression::Unary(UnaryOperator::Parentheses, _) = new_left {
-                (new_left, _) = improve_expr(new_left);
+                (new_left, _) = self.improve_expr(new_left);
             }
             if let Expression::Binary(r_op, r_left, r_right) = *right.clone() {
                 if goes_before(op, r_op) {
-                    return improve_expr(Expression::Binary(r_op, Expression::Binary(op, new_left.into(), r_left).into(), r_right))
+                    return self.improve_expr(Expression::Binary(r_op, Expression::Binary(op, new_left.into(), r_left).into(), r_right))
                 } else {
-                    let (new_right, redo) = improve_expr(*right);
+                    let (new_right, redo) = self.improve_expr(*right);
                     if redo {
-                        return improve_expr(Expression::Binary(op, new_left.into(), new_right.into()));
+                        return self.improve_expr(Expression::Binary(op, new_left.into(), new_right.into()));
                     }
                     return (Expression::Binary(op, new_left.into(), new_right.into()), false)
                 }
@@ -161,22 +192,22 @@ fn improve_expr(expr : Expression) -> (Expression, bool) {
 }
 
 // todo remove separation for simple expressions
-fn improve_simple_expr(expr : SimpleExpression) -> (SimpleExpression, bool) {
+fn improve_simple_expr(&self, expr : SimpleExpression) -> (SimpleExpression, bool) {
     match expr {
         SimpleExpression::Value(_) => (expr, false),
         SimpleExpression::Unary(_, _) => (expr, false),
         SimpleExpression::Binary(op, left, right) => {
             let mut new_left : SimpleExpression = *left;
             if let SimpleExpression::Unary(UnaryOperator::Parentheses, _) = new_left {
-                (new_left, _) = improve_simple_expr(new_left);
+                (new_left, _) = self.improve_simple_expr(new_left);
             }
             if let SimpleExpression::Binary(r_op, r_left, r_right) = *right.clone() {
                 if goes_before(op, r_op) {
-                    return improve_simple_expr(SimpleExpression::Binary(r_op, SimpleExpression::Binary(op, new_left.into(), r_left).into(), r_right))
+                    return self.improve_simple_expr(SimpleExpression::Binary(r_op, SimpleExpression::Binary(op, new_left.into(), r_left).into(), r_right))
                 } else {
-                    let (new_right, redo) = improve_simple_expr(*right);
+                    let (new_right, redo) = self.improve_simple_expr(*right);
                     if redo {
-                        return improve_simple_expr(SimpleExpression::Binary(op, new_left.into(), new_right.into()));
+                        return self.improve_simple_expr(SimpleExpression::Binary(op, new_left.into(), new_right.into()));
                     }
                     return (SimpleExpression::Binary(op, new_left.into(), new_right.into()), false)
                 }
@@ -186,18 +217,18 @@ fn improve_simple_expr(expr : SimpleExpression) -> (SimpleExpression, bool) {
     }
 }
 
-fn build_ast_for_simple_expression(expression : Pair<Rule>) -> Result<SimpleExpression, Error> {
-    let expr = build_ast_from_simple_expression_inner(expression)?;
-    let (res, _) = improve_simple_expr(expr);
+fn build_ast_for_simple_expression(&self, expression : Pair<Rule>) -> Result<SimpleExpression, Error> {
+    let expr = self.build_ast_from_simple_expression_inner(expression)?;
+    let (res, _) = self.improve_simple_expr(expr);
     Ok(res)
 }
 
-fn build_ast_from_simple_expression_inner(expression: Pair<Rule>) -> Result<SimpleExpression, Error> {
+fn build_ast_from_simple_expression_inner(&self, expression: Pair<Rule>) -> Result<SimpleExpression, Error> {
     match expression.as_rule() {
         Rule::monadicExpr => {
             let mut iter = expression.into_inner().into_iter();
             let operator = iter.next().unwrap();
-            let right = build_ast_from_simple_expression_inner(iter.next().unwrap())?;
+            let right = self.build_ast_from_simple_expression_inner(iter.next().unwrap())?;
             if operator.as_str() == "-" {
                 Ok(SimpleExpression::Unary(super::UnaryOperator::UnaryMinus, right.into()))
             } else {
@@ -206,9 +237,9 @@ fn build_ast_from_simple_expression_inner(expression: Pair<Rule>) -> Result<Simp
         },
         Rule::dyadicExpr => {
             let mut iter = expression.into_inner().into_iter();
-            let left = build_ast_from_simple_expression_inner(iter.next().unwrap())?;
+            let left = self.build_ast_from_simple_expression_inner(iter.next().unwrap())?;
             let operator = iter.next().unwrap();
-            let right = build_ast_from_simple_expression_inner(iter.next().unwrap())?;
+            let right = self.build_ast_from_simple_expression_inner(iter.next().unwrap())?;
             match operator.as_str() {
                 "+" => Ok(SimpleExpression::Binary(Operator::Plus, left.into(), right.into())),
                 "-" => Ok(SimpleExpression::Binary(Operator::Minus, left.into(), right.into())),
@@ -230,32 +261,32 @@ fn build_ast_from_simple_expression_inner(expression: Pair<Rule>) -> Result<Simp
             }
         },
         Rule::expression => {
-            return build_ast_from_simple_expression_inner(expression.into_inner().into_iter().next().unwrap())
+            return self.build_ast_from_simple_expression_inner(expression.into_inner().into_iter().next().unwrap())
         },
         Rule::parenth_expr => {
-            let inner_expr = build_ast_from_simple_expression_inner(expression.into_inner().into_iter().next().unwrap().into_inner().into_iter().next().unwrap())?;
+            let inner_expr = self.build_ast_from_simple_expression_inner(expression.into_inner().into_iter().next().unwrap().into_inner().into_iter().next().unwrap())?;
             Ok(SimpleExpression::Unary(super::UnaryOperator::Parentheses, inner_expr.into()))
         },
         _ => {
-            return Ok(SimpleExpression::Value(build_ast_from_simple_value(expression)?))
+            return Ok(SimpleExpression::Value(self.build_ast_from_simple_value(expression)?))
         }
     }
 
 
 }
 
-fn build_ast_from_expression(expression: Pair<Rule>) -> Result<Expression, Error> {
-    let expr = build_ast_from_expression_inner(expression)?;
-    let (res, _) = improve_expr(expr);
+fn build_ast_from_expression(&self, expression: Pair<Rule>) -> Result<Expression, Error> {
+    let expr = self.build_ast_from_expression_inner(expression)?;
+    let (res, _) = self.improve_expr(expr);
     Ok(res)
 }
 
-fn build_ast_from_expression_inner(expression: Pair<Rule>) -> Result<Expression, Error> {
+fn build_ast_from_expression_inner(&self, expression: Pair<Rule>) -> Result<Expression, Error> {
     match expression.as_rule() {
         Rule::monadicExpr => {
             let mut iter = expression.into_inner().into_iter();
             let operator = iter.next().unwrap();
-            let right = build_ast_from_expression_inner(iter.next().unwrap())?;
+            let right = self.build_ast_from_expression_inner(iter.next().unwrap())?;
             if operator.as_str() == "-" {
                 Ok(Expression::Unary(super::UnaryOperator::UnaryMinus, right.into()))
             } else {
@@ -264,9 +295,9 @@ fn build_ast_from_expression_inner(expression: Pair<Rule>) -> Result<Expression,
         },
         Rule::dyadicExpr => {
             let mut iter = expression.into_inner().into_iter();
-            let left = build_ast_from_expression_inner(iter.next().unwrap())?;
+            let left = self.build_ast_from_expression_inner(iter.next().unwrap())?;
             let operator = iter.next().unwrap();
-            let right = build_ast_from_expression_inner(iter.next().unwrap())?;
+            let right = self.build_ast_from_expression_inner(iter.next().unwrap())?;
             match operator.as_str() {
                 "+" => Ok(Expression::Binary(Operator::Plus, left.into(), right.into())),
                 "-" => Ok(Expression::Binary(Operator::Minus, left.into(), right.into())),
@@ -288,70 +319,70 @@ fn build_ast_from_expression_inner(expression: Pair<Rule>) -> Result<Expression,
             }
         },
         Rule::expression => {
-            return build_ast_from_expression_inner(expression.into_inner().into_iter().next().unwrap())
+            return self.build_ast_from_expression_inner(expression.into_inner().into_iter().next().unwrap())
         },
         Rule::parenth_expr => {
-            let inner_expr = build_ast_from_expression_inner(expression.into_inner().into_iter().next().unwrap().into_inner().into_iter().next().unwrap())?;
+            let inner_expr = self.build_ast_from_expression_inner(expression.into_inner().into_iter().next().unwrap().into_inner().into_iter().next().unwrap())?;
             Ok(Expression::Unary(super::UnaryOperator::Parentheses, inner_expr.into()))
         },
         _ => {
-            return Ok(Expression::Value(build_ast_from_value(expression)?))
+            return Ok(Expression::Value(self.build_ast_from_value(expression)?))
         }
     }
 
 
 }
 
-fn build_ast_from_init(command: Pairs<Rule>) -> Result<AstNode, Error> {
+fn build_ast_from_init(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
     let mut first = iter.next().unwrap();
     if let Rule::type_name = first.as_rule() {
-        let type_val = Some(build_ast_from_type(first)?);
+        let type_val = Some(self.build_ast_from_type(first)?);
         first = iter.next().unwrap();
         let mut assign = first.into_inner().into_iter();
-        let name = build_ast_from_ident(assign.next().unwrap())?;
-        let expr = build_ast_from_expression(assign.next().unwrap())?;
+        let name = self.build_ast_from_ident(assign.next().unwrap())?;
+        let expr = self.build_ast_from_expression(assign.next().unwrap())?;
         return Ok(AstNode::Init { typ: type_val.unwrap(), val: name, expr });
     } 
     let mut assign = first.into_inner().into_iter();
-    let name = build_ast_from_noun(assign.next().unwrap())?;
-    let expr = build_ast_from_expression(assign.next().unwrap())?;
+    let name = self.build_ast_from_noun(assign.next().unwrap())?;
+    let expr = self.build_ast_from_expression(assign.next().unwrap())?;
 
     Ok(AstNode::SetVal { val: name, expr })
 }
 
-fn build_ast_from_if(command: Pairs<Rule>) -> Result<AstNode, Error> {
+fn build_ast_from_if(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
     return Ok(AstNode::If { 
-        clause: build_ast_from_expression(iter.next().unwrap())?, 
-        block: build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?,
-        else_block: iter.next().and_then(|rule| Some(build_ast_from_block(rule.into_inner().into_iter().next().unwrap().into_inner()).unwrap()))
+        clause: self.build_ast_from_expression(iter.next().unwrap())?, 
+        block: self.build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?,
+        else_block: iter.next().and_then(|rule| Some(self.build_ast_from_block(rule.into_inner().into_iter().next().unwrap().into_inner()).unwrap()))
     })
 }
 
-fn build_ast_from_for(command: Pairs<Rule>) -> Result<AstNode, Error> {
+fn build_ast_from_for(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
     let name = iter.next().unwrap();
     let mut range = iter.next().unwrap().into_inner().into_iter();
     Ok(AstNode::For { 
-        val:  build_ast_from_ident(name).unwrap(), 
-        from: build_ast_from_value(range.next().unwrap())?, 
-        to: build_ast_from_value(range.next().unwrap())?,
-        block: build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?
+        val:  self.build_ast_from_ident(name).unwrap(), 
+        from: self.build_ast_from_value(range.next().unwrap())?, 
+        to: self.build_ast_from_value(range.next().unwrap())?,
+        block: self.build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?
     })
 }
 
-fn build_ast_from_value(val: Pair<Rule>) -> Result<BaseValue, Error> {
+fn build_ast_from_value(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
     match val.as_rule() {
         Rule::integer => Ok(BaseValue::Int(val.as_str().parse::<i32>().unwrap())),
         Rule::decimal => Ok(BaseValue::Float(val.as_str().parse::<f32>().unwrap())),
         Rule::boolean => Ok(BaseValue::Bool(val.as_str() == "true")),
-        Rule::color   => build_ast_from_color(val),
-        Rule::noun   => Ok(BaseValue::Id(build_ast_from_noun(val)?)),
+        Rule::color   => self.build_ast_from_color(val),
+        Rule::noun   => Ok(BaseValue::Id(self.build_ast_from_noun(val)?)),
         Rule::array_literal => {
             let mut elements = vec![];
             for item in val.into_inner() {
-                elements.push(build_ast_from_value(item)?);
+                elements.push(self.build_ast_from_value(item)?);
             }
             if elements.is_empty() {
                 return Ok(BaseValue::Array(None, elements));
@@ -361,20 +392,34 @@ fn build_ast_from_value(val: Pair<Rule>) -> Result<BaseValue, Error> {
                 return Err(Error::TypeError { message: "All elements in the array must be of the same type".into() });
             }
             Ok(BaseValue::Array(Some(first_type), elements))
+        },
+        Rule::function_call => {
+            let mut iter = val.into_inner().into_iter();
+            let name = self.build_ast_from_ident(iter.next().unwrap())?;
+            let args = self.build_ast_from_arglist(iter)?;
+            if let Some(return_type) = self.function_signatures.get(&name) {
+                if let Some(typ) = return_type {
+                    Ok(BaseValue::FunctionCall(name, args, typ.clone()))
+                } else {
+                    Err(Error::TypeError { message: format!("Function {} has no return type", name).into() })
+                }
+            } else {
+                Err(Error::TypeError { message: format!("Unknown function {}", name).into() })
+            }
         }
         _ => unreachable!("Unexpected code 8")
     }
 }
 
-fn build_ast_from_simple_value(val: Pair<Rule>) -> Result<SimpleValue, Error> {
+fn build_ast_from_simple_value(&self, val: Pair<Rule>) -> Result<SimpleValue, Error> {
     match val.as_rule() {
         Rule::integer => Ok(SimpleValue::Int(val.as_str().parse::<i32>().unwrap())),
-        Rule::noun   => Ok(SimpleValue::Id(build_ast_from_noun(val)?)),
-        _ => unreachable!("Unexpected code 8")
+        Rule::noun   => Ok(SimpleValue::Id(self.build_ast_from_noun(val)?)),
+        _ => unreachable!("Unexpected code 9")
     }
 }
 
-fn build_ast_from_color(val: Pair<Rule>) -> Result<BaseValue, Error> {
+fn build_ast_from_color(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
     match val.as_str() {
         "Color::Red" => Ok(BaseValue::Color(233,35,49)),
         "Color::Green" => Ok(BaseValue::Color(126,183,134)),
@@ -389,20 +434,20 @@ fn build_ast_from_color(val: Pair<Rule>) -> Result<BaseValue, Error> {
     }
 }
 
-fn build_ast_from_while(command: Pairs<Rule>) -> Result<AstNode, Error> {
+fn build_ast_from_while(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
     Ok(AstNode::While { 
-        clause: build_ast_from_expression(iter.next().unwrap())?, 
-        block: build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?,
+        clause: self.build_ast_from_expression(iter.next().unwrap())?, 
+        block: self.build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?,
     })
 }
 
-fn build_ast_from_array_type(type_val: Pairs<Rule>) -> Result<Type, Error> {
+fn build_ast_from_array_type(&self, type_val: Pairs<Rule>) -> Result<Type, Error> {
     use Type::*;
     let mut iter = type_val.into_iter().next().unwrap().into_inner().into_iter();
-    let inner_type = build_ast_from_type(iter.next().unwrap())?;
+    let inner_type = self.build_ast_from_type(iter.next().unwrap())?;
     //return Ok(Array(Box::new(Some(inner_type)), 3));
-    if let BaseValue::Int(array_size) = build_ast_from_value(iter.next().unwrap())? {
+    if let BaseValue::Int(array_size) = self.build_ast_from_value(iter.next().unwrap())? {
         if array_size <= 0 {
             return Err(Error::ParseError { message: "Array size must be greater than 0".into() });
         }
@@ -412,13 +457,13 @@ fn build_ast_from_array_type(type_val: Pairs<Rule>) -> Result<Type, Error> {
     }
 }
 
-fn build_ast_from_type(type_val: Pair<Rule>) -> Result<Type, Error> {
+fn build_ast_from_type(&self, type_val: Pair<Rule>) -> Result<Type, Error> {
     use BaseType::*;
     use Type::*;
 
     if let Some(i) = type_val.clone().into_inner().into_iter().next() {
         if i.as_rule() == Rule::array_type {
-            return build_ast_from_array_type(type_val.into_inner());
+            return self.build_ast_from_array_type(type_val.into_inner());
         }
     }
     match type_val.as_str() {
@@ -428,4 +473,6 @@ fn build_ast_from_type(type_val: Pair<Rule>) -> Result<Type, Error> {
         "float" => Ok(Primitive(Float)),
         t => Err(Error::ParseError { message: format!("Unknown type 22: {}", t).into() })
     }
+}
+
 }

@@ -1,5 +1,9 @@
 use std::fmt;
 
+use pest::iterators::Pairs;
+
+use crate::Rule;
+
 pub mod builder;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BaseType {
@@ -7,6 +11,17 @@ pub enum BaseType {
     Bool,
     Color,
     Float
+}
+
+impl BaseType {
+    pub fn to_string(&self) -> String {
+        match self {
+            BaseType::Int => "int".to_string(),
+            BaseType::Bool => "bool".to_string(),
+            BaseType::Color => "color".to_string(),
+            BaseType::Float => "float".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -67,6 +82,7 @@ pub enum BaseValue {
     RandomColor,
     Float(f32),
     Array(Option<Type>, Vec<BaseValue>), // Array of BaseValues
+    FunctionCall(String, Vec<Expression>, Type), // Function call with name and arguments
 }
 
 
@@ -76,6 +92,21 @@ pub enum BaseValue {
 pub enum Type {
     Primitive(BaseType),
     Array(Box<Option<Type>>, usize), // Array of a certain type with a fixed size
+}
+
+impl Type {
+    pub fn to_string(&self) -> String {
+        match self {
+            Type::Primitive(base_type) => base_type.to_string(),
+            Type::Array(inner_type, size) => {
+                let inner = match inner_type.as_ref() {
+                    Some(t) => t.to_string(),
+                    None => "()".to_string(),
+                };
+                format!("array<{},{}>", inner, size)
+            }
+        }
+    }
 }
 
 impl BaseValue {
@@ -93,6 +124,9 @@ impl BaseValue {
                 }
                 let inner = inner_type.as_ref().unwrap().clone();
                 Type::Array(Box::new(Some(inner)), elems.len())
+            }
+            BaseValue::FunctionCall(_, _, t) => {
+                t.clone()
             }
         }
     }
@@ -188,11 +222,21 @@ pub enum AstNode {
     SetVal { val: VariableCall, expr: Expression },
     For     { val: String, from: BaseValue, to: BaseValue, block: AstBlock },
     While   { clause: Expression, block: AstBlock},
-    If      { clause: Expression, block: AstBlock, else_block: Option<AstBlock>}
+    If      { clause: Expression, block: AstBlock, else_block: Option<AstBlock>},
+    Return  { expr: Expression },
 }
 #[derive(Debug, Clone)]
 pub struct AstBlock {
     pub nodes : Vec<AstNode>
+}
+
+
+#[derive(Debug, Clone)]
+pub struct HalfParsedAstFunction<'a> {
+    pub name: String,
+    pub args: Vec<(String, Type)>,
+    pub return_type: Option<Type>,
+    pub statements: Pairs<'a, Rule>
 }
 
 #[derive(Debug, Clone)]

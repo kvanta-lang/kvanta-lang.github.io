@@ -1,4 +1,4 @@
-document      =  { SOI ~ source_file ~ EOI }
+ document      =  { SOI ~ source_file ~ EOI }
 source_file   =  _{ forest | block }
 block         =  { statement* }
 
@@ -14,7 +14,7 @@ function      =  { fn_header ~ "{" ~ block ~ "}" }
 
 statement      =  { (command | init_statement | if_statement | for_statement | while_statement | return_statement) }
 command        =  { function_call ~ ";" }
-function_call  = _{ ident ~ "(" ~ params? ~ ")" }
+function_call  =  { ident ~ "(" ~ params? ~ ")" }
 params         = _{ expression ~ ("," ~ expression)* }
 init_statement =  { type_name? ~ initialization  ~ ";" }
 initialization =  { noun ~ "=" ~ expression }
@@ -44,7 +44,7 @@ parenth_expr = { "(" ~ expression ~ ")" }
 
 box = {"[" ~ expression ~ "]" }
 noun = {ident ~ box* }
-term = _{ decimal | integer | color | boolean | noun | array_literal | parenth_expr }
+term = _{ decimal | integer | color | boolean | function_call | noun | array_literal | parenth_expr }
 
 operator = {
   
