@@ -462,6 +462,7 @@ impl Execution {
                         }
                         if let Some((params, _, body)) = self.functions.get(&name) {
                             let mut new_exec = self.create_subprogram();
+                            new_exec.scope.variables = HashMap::new(); // Clear the scope for the function call
                             for (i, (name, _)) in params.iter().enumerate() {
                                 if i < vals.len() {
                                     new_exec.scope.variables.insert(name.clone(), vals[i].clone());

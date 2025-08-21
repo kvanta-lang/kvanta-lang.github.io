@@ -9,11 +9,11 @@ func add(x:int, y:int) -> int {
 global {
     int v = 100;
     float v2 = 4.5;
-    int v = 300;
+    int p = 300;
 }
 
 func main() {
-    int p = 3;
+    int p2 = 3;
     for i in (1..2) {
         v = 300;
         circle(i,i,10);
@@ -21,7 +21,7 @@ func main() {
             v2 = 4.5;
         }
     }
-    circle(add(300, 20), 240, v);
+    circle(add(200, 10), 240, v);
 }
 
 func some() { 
