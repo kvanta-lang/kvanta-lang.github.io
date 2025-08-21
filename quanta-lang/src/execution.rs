@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, rc::Rc};
+use std::{collections::HashMap};
 
 use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, BaseValue, Expression, Operator, Type, UnaryOperator, VariableCall}, error::Error};
 
