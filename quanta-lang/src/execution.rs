@@ -7,7 +7,6 @@ use js_sys::Math;
 
 #[derive(Debug, Clone)]
 pub struct Scope {
-    pub depth: i32,
     pub variables: HashMap<String, BaseValue>,
     pub outer_scope: Option<Box<Scope>>,
 }
@@ -87,7 +86,7 @@ impl Execution {
     pub fn from_program(prog : Program) -> Execution {
         Execution {
             lines : prog.lines.clone(),
-            scope : Scope { depth: 0, variables: HashMap::new(), outer_scope: None },
+            scope : Scope { variables: HashMap::new(), outer_scope: None },
             canvas: Canvas::default(),
             functions: prog.functions.clone(),
             figure_color: "#FFFFFF".to_string(),
@@ -99,7 +98,7 @@ impl Execution {
     fn create_subprogram(&self) -> Execution {
         Execution {
             lines: self.lines.clone(),
-            scope: Scope { depth: self.scope.depth + 1, variables: HashMap::new(), outer_scope: Some(Box::new(self.scope.clone())) },
+            scope: Scope { variables: HashMap::new(), outer_scope: Some(Box::new(self.scope.clone())) },
             canvas: Canvas::default(),
             functions: self.functions.clone(),
             figure_color: self.figure_color.clone(),
