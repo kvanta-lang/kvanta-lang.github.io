@@ -9,7 +9,7 @@ bracket_block =  { "{" ~ block ~ "}" }
 newline       = _{ "\n" | "\r" }
 WHITESPACE    = _{ " " | "\t" | "\n" | "\r" }
 
-fn_arg  = {ident ~ ":" ~ type_name}
+fn_arg  = {type_name ~ ident}
 fn_arg_list = {(fn_arg ~ ("," ~ fn_arg)*)?}
 fn_header = { "func" ~ ident ~ "(" ~ fn_arg_list ~ ")" ~ ("->" ~ type_name)? }
 function      =  { fn_header ~ "{" ~ block ~ "}" }

@@ -1,4 +1,4 @@
-func add(x: int, y:int) -> int {
+func add(int x, const int y) -> int {
     if (y == 0) {
         return p;
     }
@@ -15,6 +15,7 @@ global {
 
 func main() {
     int p2 = 3;
+    const array<int, 3> nums = {1, 2, 3};
     for i in (1..2) {
         v = 300;
         circle(i,i,10);
@@ -23,6 +24,7 @@ func main() {
         }
     }
     circle(add(200, 10), 240, v2);
+    some();
 }
 
 func some() { 
@@ -31,8 +33,8 @@ func some() {
   setLineColor(Color::Green);
   circle(320, 240, 50);
 
-  array<int,3> letters = {1, 2, 3};
-  letters[1] = 0;
+  array<int,3> betters = {1, 2, 3};
+  betters[1] = 0;
 
 
   rectangle(100, 100, 200, 200);
@@ -45,4 +47,11 @@ func some() {
     int a = 50;
     rectangle(0, i * a, (i+1) * a, (i+1) * a);
   }
+
+    const array<int,3> letters = {0, 100, 200};
+    letters[2] = 500;
+    circle(letters[2], letters[2], letters[1]);
 }
+
+
+

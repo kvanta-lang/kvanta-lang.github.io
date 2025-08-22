@@ -104,9 +104,22 @@ impl Type {
             self.type_name.to_string())
     }
 
-    pub fn typ(t: BaseType) -> Type
-    {
+    pub fn typ(t: BaseType) -> Type {
         Type{type_name: TypeName::Primitive(t), is_const: false}
+    }
+
+    pub fn can_assign(&self, t: &Type) -> bool {
+        if let TypeName::Array(t1, size1) = &self.type_name {
+            if let TypeName::Array(t2, size2) = &t.type_name {
+                if size1 != size2 { return false; }
+                if t2.is_none() { return true; }
+                if t1.is_none() { return false; }
+                return size1 == size2 && t1.clone().unwrap().can_assign(&t2.clone().unwrap());
+            } else {
+                return false;
+            }
+        }    
+        return true;
     }
 }
 

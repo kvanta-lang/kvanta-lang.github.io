@@ -340,7 +340,7 @@ impl Program {
             return Err(Error::TypeError { message: format!("Const variable {} cannot be reassigned", val).into() });
         }
         let expr_type = self.clone().type_check_expr(&expr)?;
-        if var_type.type_name != expr_type.type_name {
+        if !var_type.can_assign(&expr_type) {
             return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", expr_type, val, var_type).into() });
         }
         Ok((var_type, expr))
@@ -351,10 +351,10 @@ impl Program {
             return Err(Error::LogicError { message: format!("Variable {} is re-defined!", val).into() }); 
         } else {
             let expr_type = self.clone().type_check_expr(&expr)?;
-            if expr_type != new_type_def.clone() {
+            if !new_type_def.can_assign(&expr_type) {
                 return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", expr_type, val, new_type_def).into() }); 
             }
-            Ok((expr_type, expr))
+            Ok((new_type_def, expr))
         }
     }
 

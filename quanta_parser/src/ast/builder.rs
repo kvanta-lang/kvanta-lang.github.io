@@ -92,8 +92,8 @@ fn get_function_signature<'a>(&self, statement: Pairs<'a, Rule>) -> Result<HalfP
     let args_iter = header_iter.next().unwrap().into_inner().into_iter();
     for arg in args_iter {
         let mut arg_iter = arg.into_inner().into_iter();
-        let arg_name = self.build_ast_from_ident(arg_iter.next().unwrap())?;
         let arg_type = self.build_ast_from_type(arg_iter.next().unwrap())?;
+        let arg_name = self.build_ast_from_ident(arg_iter.next().unwrap())?;
         args.push((arg_name, arg_type));
     }
     let typer = {
@@ -474,12 +474,11 @@ fn build_ast_from_array_type(&self, type_val: Pairs<Rule>) -> Result<TypeName, E
     }
 }
 
-fn build_ast_from_inner_type(&self, type_val: Pair<Rule>) -> Result<TypeName, Error> {
+fn build_ast_from_inner_type(&self, type_val: Pairs<Rule>) -> Result<TypeName, Error> {
     use BaseType::*;
-
-    if let Some(i) = type_val.clone().into_inner().into_iter().next() {
+    if let Some(i) = type_val.clone().next() {
         if i.as_rule() == Rule::array_type {
-            return self.build_ast_from_array_type(type_val.into_inner());
+            return self.build_ast_from_array_type(type_val);
         }
     }
     match type_val.as_str() {
@@ -495,10 +494,10 @@ fn build_ast_from_type(&self, type_val: Pair<Rule>) -> Result<Type, Error> {
     let mut whole = type_val.clone().into_inner().into_iter();
     if let Some(first) = whole.next(){
         if first.as_rule() == Rule::const_key {
-            return Ok(Type{type_name: self.build_ast_from_inner_type(whole.next().unwrap())?, is_const: true});
+            return Ok(Type{type_name: self.build_ast_from_inner_type(whole)?, is_const: true});
         }
     }
-    Ok(Type{type_name: self.build_ast_from_inner_type(type_val)?, is_const: false})
+    Ok(Type{type_name: self.build_ast_from_inner_type(type_val.into_inner().into_iter())?, is_const: false})
 
 }
 
