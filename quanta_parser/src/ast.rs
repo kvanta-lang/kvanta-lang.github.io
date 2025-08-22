@@ -86,47 +86,64 @@ pub enum BaseValue {
 }
 
 
-
+#[derive(Debug, Clone, PartialEq)]
+pub struct Type {
+    pub type_name: TypeName,
+    pub is_const: bool,
+}
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type {
+pub enum TypeName {
     Primitive(BaseType),
     Array(Box<Option<Type>>, usize), // Array of a certain type with a fixed size
 }
 
 impl Type {
     pub fn to_string(&self) -> String {
-        match self {
-            Type::Primitive(base_type) => base_type.to_string(),
-            Type::Array(inner_type, size) => {
+        format!("{} {}", if self.is_const { "const" } else { "" }, 
+            self.type_name.to_string())
+    }
+
+    pub fn typ(t: BaseType) -> Type
+    {
+        Type{type_name: TypeName::Primitive(t), is_const: false}
+    }
+}
+
+impl TypeName {
+    pub fn to_string(&self) -> String {
+        match &self {
+            TypeName::Primitive(type_name) => type_name.to_string(),
+            TypeName::Array(inner_type, size) => {
                 let inner = match inner_type.as_ref() {
                     Some(t) => t.to_string(),
                     None => "()".to_string(),
                 };
                 format!("array<{},{}>", inner, size)
-            }
+            },
         }
     }
 }
 
 impl BaseValue {
-    pub fn get_type(&self) -> Type {
+    pub fn get_type(&self) -> TypeName {
+        use TypeName::*;
         match self {
-            BaseValue::Id(_) => Type::Primitive(BaseType::Int), // Default type for identifiers
-            BaseValue::Int(_) => Type::Primitive(BaseType::Int),
-            BaseValue::Bool(_) => Type::Primitive(BaseType::Bool),
-            BaseValue::Color(_, _, _) => Type::Primitive(BaseType::Color),
-            BaseValue::RandomColor => Type::Primitive(BaseType::Color),
-            BaseValue::Float(_) => Type::Primitive(BaseType::Float),
+            BaseValue::Id(_) => Primitive(BaseType::Int), // Default type for identifiers
+            BaseValue::Int(_) => Primitive(BaseType::Int),
+            BaseValue::Bool(_) => Primitive(BaseType::Bool),
+            BaseValue::Color(_, _, _) => Primitive(BaseType::Color),
+            BaseValue::RandomColor => Primitive(BaseType::Color),
+            BaseValue::Float(_) => Primitive(BaseType::Float),
             BaseValue::Array(inner_type, elems) => {
                 if elems.is_empty() || inner_type.is_none() {
-                    return Type::Array(Box::new(None), 0);
+                    return Array(Box::new(None), 0);
                 }
                 let inner = inner_type.as_ref().unwrap().clone();
-                Type::Array(Box::new(Some(inner)), elems.len())
+                Array(Box::new(Some(inner)), elems.len())
             }
             BaseValue::FunctionCall(_, _, t) => {
-                t.clone()
+                t.type_name.clone()
             }
         }
     }

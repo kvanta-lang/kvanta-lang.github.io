@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 
 use quanta_parser::{ast::*, error::Error};
 use BaseType::*;
-use Type::*;
+use TypeName::*;
 
 #[derive(Debug, Clone)]
 pub struct Scope {
@@ -48,18 +48,28 @@ impl ReturnType {
     }
 }
 
+fn int_type() -> Type 
+{
+    Type { type_name: Primitive(Int), is_const: false }
+}
+
+fn color_type() -> Type
+{
+    Type {type_name: Primitive(Color), is_const: false}
+}
+
 pub fn create_program(ast: AstProgram) -> Program {
     Program {lines: ast, scope: Scope { variables: HashMap::new(), outer_scope: Box::new(None) }, 
     global_vars: HashMap::new(),
     functions: HashMap::new(), function_defs: HashMap::from([
-        (String::from("circle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int)], None)),
-        (String::from("line"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
-        (String::from("rectangle"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
-        (String::from("setLineColor"), (vec![Primitive(Color)], None)),
-        (String::from("setFigureColor"), (vec![Primitive(Color)], None)),
-        (String::from("setLineWidth"), (vec![Primitive(Int)], None)),
+        (String::from("circle"), (vec![int_type(), int_type(), int_type()], None)),
+        (String::from("line"), (vec![int_type(), int_type(), int_type(), int_type()], None)),
+        (String::from("rectangle"), (vec![int_type(), int_type(), int_type(), int_type()], None)),
+        (String::from("setLineColor"), (vec![color_type()], None)),
+        (String::from("setFigureColor"), (vec![color_type()], None)),
+        (String::from("setLineWidth"), (vec![int_type()], None)),
         (String::from("polygon"), (vec![], None)), // at least 6 Ints for polygon
-        (String::from("arc"), (vec![Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int), Primitive(Int)], None)),
+        (String::from("arc"), (vec![int_type(), int_type(), int_type(), int_type(), int_type()], None)),
     ])}
 }
 
@@ -99,6 +109,10 @@ impl Program {
                     self.function_defs.insert(func.name.clone(), (func.args.iter().map(|(_, t)| t.clone()).collect(), func.return_type.clone()));
                 }
                 for (name, (typ, expr)) in &forest.1 {
+                    let expr_type = self.type_check_expr(&expr.clone())?;
+                    if expr_type.type_name != typ.type_name {
+                        return Err(Error::TypeError { message: format!("Global variable {} of type {} cannot be assigned a type {}", name, typ.to_string(), expr_type.to_string()).into() });
+                    }
                     if self.contains_key(name) {
                         return Err(Error::LogicError { message: format!("Global variable {} is re-defined!", name).into() });
                     }
@@ -109,7 +123,7 @@ impl Program {
                     let mut sub = self.create_subprogram(None);
                     for arg in &func.args {
                         let simple_expr = {
-                            match arg.1.clone() {
+                            match arg.1.type_name.clone() {
                                 Primitive(Int) => Expression::Value(BaseValue::Int(0)),
                                 Primitive(Float) => Expression::Value(BaseValue::Float(0.0)),
                                 Primitive(Bool) => Expression::Value(BaseValue::Bool(false)),
@@ -292,7 +306,7 @@ impl Program {
                     match self.clone().type_check_expr(arg) {
                         Err(error) => return Some(error),
                         Ok(arg_type) => {
-                            if arg_type != Primitive(Int) {
+                            if arg_type.type_name != Primitive(Int) {
                                 return Some(Error::TypeError { message: format!("Wrong type of argument for command {}: got {:?}, expected Int", name, arg_type).into() });
                             }
                         }
@@ -307,7 +321,7 @@ impl Program {
                 match self.clone().type_check_expr(&args[i]) {
                     Err(error) => return Some(error),
                     Ok(arg_type) => {
-                        if arg_type != params[i] {
+                        if arg_type.type_name != params[i].type_name {
                             return Some(Error::TypeError { message: format!("Wrong type of argument number {} for command {}: got {:?}, expected {:?}", i, name, arg_type, params[i]).into() });
                         }
                     }
@@ -322,8 +336,11 @@ impl Program {
 
     fn type_check_set_val(&self, val: VariableCall, expr: Expression) -> Result<(Type, Expression), Error> {
         let var_type = self.clone().type_check_var(&val)?;
+        if var_type.is_const {
+            return Err(Error::TypeError { message: format!("Const variable {} cannot be reassigned", val).into() });
+        }
         let expr_type = self.clone().type_check_expr(&expr)?;
-        if var_type != expr_type {
+        if var_type.type_name != expr_type.type_name {
             return Err(Error::LogicError { message: format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", expr_type, val, var_type).into() });
         }
         Ok((var_type, expr))
@@ -344,7 +361,7 @@ impl Program {
     fn type_check_if(&self, clause : Expression, block : AstBlock, else_block : Option<AstBlock>) -> Result<ReturnType, Error> {
         let clause_type = self.clone().type_check_expr(&clause)?;
              
-        if clause_type != Primitive(Bool) {
+        if clause_type.type_name != Primitive(Bool) {
             return Err(Error::LogicError { message: format!("If clause must be a bool expression").into() })
         }
         let mut if_prog = self.create_subprogram(Some(block));
@@ -378,17 +395,17 @@ impl Program {
     fn type_check_for(&self, val : String, from : BaseValue, to : BaseValue, block : AstBlock) -> Result<ReturnType, Error> {
         let t = self.clone().type_check_baseval(&from)?;
         let f = self.clone().type_check_baseval(&to)?;
-        if t != f || t != Primitive(Int) {
+        if t != f || t.type_name != Primitive(Int) {
             return Err(Error::LogicError { message: format!("For loop range can only be integer values").into() })  
         }
         let mut for_prog = self.create_subprogram(Some(block));
-        for_prog.scope.variables.insert(val, (Primitive(Int), Expression::Value(from)));
+        for_prog.scope.variables.insert(val, (Type{type_name:Primitive(Int), is_const:false}, Expression::Value(from)));
         for_prog.type_check()
     }
 
     fn type_check_while(&self, clause : Expression, block : AstBlock) -> Result<ReturnType, Error> {
         let clause_type = self.clone().type_check_expr(&clause)?;
-        if clause_type != Primitive(Bool) {
+        if clause_type.type_name != Primitive(Bool) {
             return Err(Error::LogicError { message: format!("While clause must be a bool expression").into() });
         }
         let mut while_prog = self.clone();
@@ -406,8 +423,8 @@ impl Program {
                 match op {
                     UnaryOperator::UnaryMinus => {
                         let inner_type = self.clone().type_check_expr(&*inner)?;
-                        if inner_type == Primitive(Int) {Ok(Primitive(Int))} else 
-                        if inner_type == Primitive(Float) {Ok(Primitive(Float))} else 
+                        if inner_type.type_name == Primitive(Int) {Ok(Type::typ(Int))} else 
+                        if inner_type.type_name == Primitive(Float) {Ok(Type::typ(Float))} else 
                         {Err(Error::TypeError { message: format!("Type mismatch in expression: {:?}", expr).into() })}
                     },
                     UnaryOperator::Parentheses =>  self.clone().type_check_expr(&*inner),
@@ -417,31 +434,31 @@ impl Program {
                 let lhs_type =  self.clone().type_check_expr(&*lhs)?;
                 let rhs_type =  self.clone().type_check_expr(&*rhs)?;
                 if *op == Operator::AND || *op == Operator::OR {
-                    if lhs_type != Primitive(Bool) || rhs_type != Primitive(Bool) {
+                    if lhs_type.type_name != Primitive(Bool) || rhs_type.type_name != Primitive(Bool) {
                         return Err(Error::TypeError { message: format!("Type mismatch in expression: {:?}", expr).into() })
                     }
-                    Ok(Primitive(Bool))
+                    Ok(Type::typ(Bool))
                 } else {
-                    if lhs_type != Primitive(Int) && lhs_type != Primitive(Float) {
+                    if lhs_type.type_name != Primitive(Int) && lhs_type.type_name != Primitive(Float) {
                         return Err(Error::TypeError { message: format!("Type mismatch in expression: {:?}", expr).into() })
                     }
-                    if rhs_type != Primitive(Int) && rhs_type != Primitive(Float) {
+                    if rhs_type.type_name != Primitive(Int) && rhs_type.type_name!= Primitive(Float) {
                         return Err(Error::TypeError { message: format!("Type mismatch in expression: {:?}", expr).into() })
                     }
                     if !is_arith(*op) {
-                        return Ok(Primitive(Bool))
+                        return Ok(Type::typ(Bool))
                     }
-                    if lhs_type == Primitive(Float) || rhs_type == Primitive(Float) {
-                        return Ok(Primitive(Float))
+                    if lhs_type.type_name == Primitive(Float) || rhs_type.type_name == Primitive(Float) {
+                        return Ok(Type::typ(Float))
                     }
-                    Ok(Primitive(Int))
+                    Ok(Type::typ(Int))
                 }
             },
         }
     }
 
     fn recursive_type_check_var(&self, tp: &Type, depth: usize) -> Result<Type, Error> {
-        if let Type::Array(inner_type, _) = tp {
+        if let Array(inner_type, _) = &tp.type_name {
             if let Some(inner) = inner_type.as_ref() {
                 if depth == 1 {
                     return Ok(inner.clone());
@@ -461,7 +478,9 @@ impl Program {
             VariableCall::ArrayCall(name, inds) => (name, inds.len())
         };
         if let Some((tp, _)) = self.get(name) {
-            if depth == 0 { return Ok(tp.clone());} else {
+            if depth == 0 { 
+                return Ok(tp.clone());
+            } else {
                 return self.recursive_type_check_var(tp, depth);
             }
         } else {
@@ -471,31 +490,30 @@ impl Program {
 
     fn type_check_baseval(&self, base : &BaseValue) -> Result<Type, Error> {
         use BaseType::*;
-        use Type::*;
         match base {
             BaseValue::Id(var) => self.type_check_var(var),
-            BaseValue::Int(_) => Ok(Primitive(Int)),
-            BaseValue::Bool(_) => Ok(Primitive(Bool)),
-            BaseValue::Color(_, _, _) => Ok(Primitive(Color)),
-            BaseValue::RandomColor => Ok(Primitive(Color)),
-            BaseValue::Float(_) => Ok(Primitive(Float)),
+            BaseValue::Int(_) => Ok(Type::typ(Int)),
+            BaseValue::Bool(_) => Ok(Type::typ(Bool)),
+            BaseValue::Color(_, _, _) => Ok(Type::typ(Color)),
+            BaseValue::RandomColor => Ok(Type::typ(Color)),
+            BaseValue::Float(_) => Ok(Type::typ(Float)),
             BaseValue::Array(inner_type, arr) => {
                 let types: Result<Vec<Type>, Error> = arr.iter()
                     .map(|item| self.type_check_baseval(item))
                     .collect();
                 let types = types?;
                 if types.is_empty() {
-                    return Ok(Array(Box::new(None), 0));
+                    return Ok(Type{type_name:Array(Box::new(None), 0), is_const: false});
                 }
                 if inner_type.is_none() {
                     return Err(Error::ParseError { message: "Array type is not defined".into() });
                 }
                 let inner_type = &inner_type.clone().unwrap();
                 
-                if types.iter().any(|t| t != inner_type) {
+                if types.iter().any(|t| t.type_name != inner_type.type_name) {
                     return Err(Error::TypeError { message: format!("Array elements must all be of type {:?}, got {:?}", inner_type, types).into() });
                 }
-                Ok(Array(Box::new(Some(inner_type.clone())), arr.len()))
+                Ok(Type{type_name:Array(Box::new(Some(inner_type.clone())), arr.len()), is_const: false})
             },
             BaseValue::FunctionCall(_,_, return_type ) => {
                 return Ok(return_type.clone());

@@ -20,6 +20,7 @@ function_call  =  { ident ~ "(" ~ params? ~ ")" }
 params         = _{ expression ~ ("," ~ expression)* }
 init_statement =  { type_name? ~ initialization  ~ ";" }
 initialization =  { noun ~ "=" ~ expression }
+const_key      =  {"const"}
 
 if_statement    =  { "if" ~ "(" ~ expression ~ ")" ~ bracket_block ~ else_block?}
 else_block      = _{ "else" ~ bracket_block }
@@ -29,8 +30,8 @@ numVar          = _{ integer | noun }
 while_statement =  { "while" ~ "(" ~ expression ~ ")" ~ bracket_block }
 return_statement = { "return" ~ expression ~ ";" }
 
-type_name      =  { array_type | primitive_type }
-primitive_type = _{ "bool" | "int" | "color" | "float" }
+type_name      =  { const_key? ~ (array_type | primitive_type) }
+primitive_type = { "bool" | "int" | "color" | "float" }
 array_type   = { "array<" ~ type_name ~ "," ~ integer ~ ">" }
 
 number     = { decimal | integer }

@@ -1,14 +1,15 @@
-func add(x:int, y:int) -> int {
+func add(x: int, y:int) -> int {
     if (y == 0) {
         return p;
     }
+    x = x + 1;
     rectangle(100, 100, x, 100);
     return x + y;
 }
 
 global {
     int v = 100;
-    float v2 = 4.5;
+    const int v2 = 45;
     int p = 300;
 }
 
@@ -18,10 +19,10 @@ func main() {
         v = 300;
         circle(i,i,10);
         if (i > 0) {
-            v2 = 4.5;
+            v = 4;
         }
     }
-    circle(add(200, 10), 240, v);
+    circle(add(200, 10), 240, v2);
 }
 
 func some() { 

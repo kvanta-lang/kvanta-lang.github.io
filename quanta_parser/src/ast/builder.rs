@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use pest::iterators::{Pairs, Pair};
-use crate::{ast::{AstFunction, AstProgram, FunctionsAndGlobals, HalfParsedAstFunction, SimpleExpression, SimpleValue, VariableCall}, error::Error, Rule};
+use crate::{ast::{AstFunction, AstProgram, FunctionsAndGlobals, HalfParsedAstFunction, SimpleExpression, SimpleValue, Type, TypeName, VariableCall}, error::Error, Rule};
 
 
-use super::{AstBlock, AstNode, Expression, Operator,  BaseType, Type, BaseValue, goes_before, UnaryOperator };
+use super::{AstBlock, AstNode, Expression, Operator,  BaseType, BaseValue, goes_before, UnaryOperator };
 
 
 
@@ -58,7 +58,7 @@ fn build_ast_from_forest(&mut self, statements: Pairs<Rule>) -> Result<Functions
                         let mut init_iter2 = init_iter.next().unwrap().into_inner().into_iter();
                         let name = self.build_ast_from_ident(init_iter2.next().unwrap())?;
                         let expr = self.build_ast_from_expression(init_iter2.next().unwrap())?;
-                        init_statements.insert(name, (type_name, expr));//AstNode::Init { typ: type_name, val: name, expr });
+                        init_statements.insert(name, (type_name, expr));
                     } else {
                         return Err(Error::ParseError { message: format!("Expected global variable initialization, found: {:?}", init.as_rule()).into() });
                     }
@@ -356,12 +356,12 @@ fn build_ast_from_init(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {
     let mut iter = command.into_iter();
     let mut first = iter.next().unwrap();
     if let Rule::type_name = first.as_rule() {
-        let type_val = Some(self.build_ast_from_type(first)?);
+        let type_val = self.build_ast_from_type(first)?;
         first = iter.next().unwrap();
         let mut assign = first.into_inner().into_iter();
         let name = self.build_ast_from_ident(assign.next().unwrap())?;
         let expr = self.build_ast_from_expression(assign.next().unwrap())?;
-        return Ok(AstNode::Init { typ: type_val.unwrap(), val: name, expr });
+        return Ok(AstNode::Init { typ: type_val, val: name, expr });
     } 
     let mut assign = first.into_inner().into_iter();
     let name = self.build_ast_from_noun(assign.next().unwrap())?;
@@ -410,7 +410,7 @@ fn build_ast_from_value(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
             if elements.iter().any(|e| e.get_type() != first_type) {
                 return Err(Error::TypeError { message: "All elements in the array must be of the same type".into() });
             }
-            Ok(BaseValue::Array(Some(first_type), elements))
+            Ok(BaseValue::Array(Some(Type{type_name: first_type, is_const: false}), elements))
         },
         Rule::function_call => {
             let mut iter = val.into_inner().into_iter();
@@ -461,24 +461,21 @@ fn build_ast_from_while(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {
     })
 }
 
-fn build_ast_from_array_type(&self, type_val: Pairs<Rule>) -> Result<Type, Error> {
-    use Type::*;
+fn build_ast_from_array_type(&self, type_val: Pairs<Rule>) -> Result<TypeName, Error> {
     let mut iter = type_val.into_iter().next().unwrap().into_inner().into_iter();
     let inner_type = self.build_ast_from_type(iter.next().unwrap())?;
-    //return Ok(Array(Box::new(Some(inner_type)), 3));
     if let BaseValue::Int(array_size) = self.build_ast_from_value(iter.next().unwrap())? {
         if array_size <= 0 {
             return Err(Error::ParseError { message: "Array size must be greater than 0".into() });
         }
-        return Ok(Array(Box::new(Some(inner_type)), array_size as usize));
+        return Ok(TypeName::Array(Box::new(Some(inner_type)), array_size as usize));
     } else {
         return Err(Error::ParseError { message: "Expected integer for array size".into() });
     }
 }
 
-fn build_ast_from_type(&self, type_val: Pair<Rule>) -> Result<Type, Error> {
+fn build_ast_from_inner_type(&self, type_val: Pair<Rule>) -> Result<TypeName, Error> {
     use BaseType::*;
-    use Type::*;
 
     if let Some(i) = type_val.clone().into_inner().into_iter().next() {
         if i.as_rule() == Rule::array_type {
@@ -486,12 +483,23 @@ fn build_ast_from_type(&self, type_val: Pair<Rule>) -> Result<Type, Error> {
         }
     }
     match type_val.as_str() {
-        "int" => Ok(Primitive(Int)),
-        "bool" => Ok(Primitive(Bool)),
-        "color" => Ok(Primitive(Color)),
-        "float" => Ok(Primitive(Float)),
+        "int" => Ok(TypeName::Primitive(Int)),
+        "bool" => Ok(TypeName::Primitive(Bool)),
+        "color" => Ok(TypeName::Primitive(Color)),
+        "float" => Ok(TypeName::Primitive(Float)),
         t => Err(Error::ParseError { message: format!("Unknown type 22: {}", t).into() })
     }
+}
+
+fn build_ast_from_type(&self, type_val: Pair<Rule>) -> Result<Type, Error> {
+    let mut whole = type_val.clone().into_inner().into_iter();
+    if let Some(first) = whole.next(){
+        if first.as_rule() == Rule::const_key {
+            return Ok(Type{type_name: self.build_ast_from_inner_type(whole.next().unwrap())?, is_const: true});
+        }
+    }
+    Ok(Type{type_name: self.build_ast_from_inner_type(type_val)?, is_const: false})
+
 }
 
 }
