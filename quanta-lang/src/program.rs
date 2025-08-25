@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::{HashMap, HashSet};
 
 use quanta_parser::{ast::*, error::Error};
 use BaseType::*;
@@ -29,6 +29,7 @@ pub struct Program {
     pub global_vars : HashMap<String, (Type, Expression)>,
     pub function_defs : HashMap<String, (Vec<Type>, Option<Type>)>,
     pub functions : HashMap<String, (Vec<(String, Type)>, Option<Type>, AstBlock)>,
+    keywords: HashSet<String>
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -70,7 +71,11 @@ pub fn create_program(ast: AstProgram) -> Program {
         (String::from("setLineWidth"), (vec![int_type()], None)),
         (String::from("polygon"), (vec![], None)), // at least 6 Ints for polygon
         (String::from("arc"), (vec![int_type(), int_type(), int_type(), int_type(), int_type()], None)),
-    ])}
+    ]), keywords: HashSet::from(["circle", "line", "rectangle", 
+                    "setLineColor", "setFigureColor", "setLineWidth", "polygon", "arc",
+                    "for", "while", "global", "func", "if", "else",
+                    "int", "bool", "color", "float", "array", "Color", "true", "false"
+    ].map(|x| String::from(x)))}
 }
 
 
@@ -98,6 +103,7 @@ impl Program {
             global_vars: self.global_vars.clone(),
             functions: self.functions.clone(),
             function_defs: self.function_defs.clone(),
+            keywords: self.keywords.clone()
         }
     }
 
@@ -106,9 +112,20 @@ impl Program {
             AstProgram::Block(ref block) => self.type_check_block(block.clone()),
             AstProgram::Forest(ref forest) => {
                 for func in &forest.0 {
+                    if self.keywords.contains(&func.name) {
+                        return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be the name of a function", func.name).into() });
+                    }
+                    for (argname, _) in &func.args {
+                        if self.keywords.contains(argname) { 
+                            return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be the name of a variable", argname).into() }); 
+                        }
+                    }
                     self.function_defs.insert(func.name.clone(), (func.args.iter().map(|(_, t)| t.clone()).collect(), func.return_type.clone()));
                 }
                 for (name, (typ, expr)) in &forest.1 {
+                    if self.keywords.contains(name) {
+                        
+                    }
                     let expr_type = self.type_check_expr(&expr.clone())?;
                     if expr_type.type_name != typ.type_name {
                         return Err(Error::TypeError { message: format!("Global variable {} of type {} cannot be assigned a type {}", name, typ.to_string(), expr_type.to_string()).into() });
@@ -347,6 +364,9 @@ impl Program {
     }
 
     fn type_check_init(&self, new_type_def : Type, val : String, expr : Expression) -> Result<(Type, Expression), Error>{
+        if self.keywords.contains(&val) {
+            return Err(Error::TypeError { message: format!("'{}' cannot be a variable, it is a keyword", val).into() })
+        }
         if let Some(_) = self.get(&val) {
             return Err(Error::LogicError { message: format!("Variable {} is re-defined!", val).into() }); 
         } else {
@@ -477,6 +497,9 @@ impl Program {
             VariableCall::Name(name) => (name, 0),
             VariableCall::ArrayCall(name, inds) => (name, inds.len())
         };
+        if self.keywords.contains(name) {
+            return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be a name of a variable", name).into() });
+        }
         if let Some((tp, _)) = self.get(name) {
             if depth == 0 { 
                 return Ok(tp.clone());

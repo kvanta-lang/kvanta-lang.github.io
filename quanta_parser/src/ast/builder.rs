@@ -417,6 +417,7 @@ fn build_ast_from_value(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
             let name = self.build_ast_from_ident(iter.next().unwrap())?;
             let args = self.build_ast_from_arglist(iter)?;
             if let Some(return_type) = self.function_signatures.get(&name) {
+                if 
                 if let Some(typ) = return_type {
                     Ok(BaseValue::FunctionCall(name, args, typ.clone()))
                 } else {

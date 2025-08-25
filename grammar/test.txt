@@ -11,6 +11,7 @@ global {
     int v = 100;
     const int v2 = 45;
     int p = 300;
+    int func1 = 3;
 }
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
             v = 4;
         }
     }
-    circle(add(200, 10), 240, v2);
+    circle(add(200, 1, 10), 240, v2);
     some();
 }
 
@@ -43,7 +44,7 @@ func some() {
   rectangle(125, 125, 175, 175);
 
   for i in (0..10) {
-    setFigureColor(Color::Random);
+    setFigureColor(Color::Red);
     int a = 50;
     rectangle(0, i * a, (i+1) * a, (i+1) * a);
   }
