@@ -1,10 +1,7 @@
-func add(int x, const int y) -> int {
-    if (y == 0) {
-        return p;
-    }
+func add(int x, array<int, 3> y) -> int {
     x = x + 1;
     rectangle(100, 100, x, 100);
-    return x + y;
+    return x + y[2];
 }
 
 global {
@@ -24,7 +21,8 @@ func main() {
             v = 4;
         }
     }
-    circle(add(200, 15), 240, v2);
+    array<int, 3> params = {10, 12, 15};
+    circle(add(200, params), 240, v2);
     some();
 }
 

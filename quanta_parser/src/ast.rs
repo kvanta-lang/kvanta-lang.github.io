@@ -81,7 +81,7 @@ pub enum BaseValue {
     Color(u8, u8, u8),
     RandomColor,
     Float(f32),
-    Array(Option<Type>, Vec<BaseValue>), // Array of BaseValues
+    Array(Vec<BaseValue>), // Array of BaseValues
     FunctionCall(String, Vec<Expression>, Type), // Function call with name and arguments
 }
 
@@ -139,24 +139,37 @@ impl TypeName {
 }
 
 impl BaseValue {
-    pub fn get_type(&self) -> TypeName {
+    pub fn get_type<F>(&self, get_var_type: &F) -> Result<TypeName, Error> 
+        where F: Fn(&VariableCall) -> Option<Type>  
+    {
         use TypeName::*;
         match self {
-            BaseValue::Id(_) => Primitive(BaseType::Int), // Default type for identifiers
-            BaseValue::Int(_) => Primitive(BaseType::Int),
-            BaseValue::Bool(_) => Primitive(BaseType::Bool),
-            BaseValue::Color(_, _, _) => Primitive(BaseType::Color),
-            BaseValue::RandomColor => Primitive(BaseType::Color),
-            BaseValue::Float(_) => Primitive(BaseType::Float),
-            BaseValue::Array(inner_type, elems) => {
-                if elems.is_empty() || inner_type.is_none() {
-                    return Array(Box::new(None), 0);
+            BaseValue::Id(name) => {
+                if let Some(type_) = get_var_type(name) {
+                    Ok(type_.type_name)
+                } else {
+                    Err(Error::TypeError { message: format!("Variable type unknown: {}", name.to_string()).into() })
                 }
-                let inner = inner_type.as_ref().unwrap().clone();
-                Array(Box::new(Some(inner)), elems.len())
+            }, 
+            BaseValue::Int(_) => Ok(Primitive(BaseType::Int)),
+            BaseValue::Bool(_) => Ok(Primitive(BaseType::Bool)),
+            BaseValue::Color(_, _, _) => Ok(Primitive(BaseType::Color)),
+            BaseValue::RandomColor => Ok(Primitive(BaseType::Color)),
+            BaseValue::Float(_) => Ok(Primitive(BaseType::Float)),
+            BaseValue::Array(elems) => {
+                if elems.is_empty() {
+                    return Ok(Array(Box::new(None), 0));
+                }
+                let type_ = elems.first().unwrap().clone().get_type(get_var_type)?;
+                for elem in elems {
+                    if elem.get_type(get_var_type)? != type_ {
+                        return Err(Error::TypeError { message: format!("Array type unknown").into() });
+                    }
+                }
+                Ok(Array(Box::new(Some(Type{type_name:type_, is_const:false})), elems.len()))
             }
             BaseValue::FunctionCall(_, _, t) => {
-                t.type_name.clone()
+                Ok(t.type_name.clone())
             }
         }
     }
@@ -257,14 +270,16 @@ pub enum AstNode {
 }
 
 impl Expression {
-    pub fn get_type(&self) -> Result<TypeName, Error> {
+    pub fn get_type<F>(&self, get_var_type: &F) -> Result<TypeName, Error>
+        where F: Fn(&VariableCall) -> Option<Type>
+    {
         let type_mismatch = Err(Error::TypeError { message: format!("Type mismatch error").into() });
         match &self {
-            Expression::Value(base_value) => Ok(base_value.get_type()),
-            Expression::Unary(_, expr) => expr.get_type(),
+            Expression::Value(base_value) => base_value.get_type(get_var_type),
+            Expression::Unary(_, expr) => expr.get_type(get_var_type),
             Expression::Binary(_, e1, e2) => {
-                let t1 = e1.get_type()?;
-                let t2 = e2.get_type()?;
+                let t1 = e1.get_type(get_var_type)?;
+                let t2 = e2.get_type(get_var_type)?;
                 if let TypeName::Array(ar_typ_1, ar_sz_1) = &t1 {
                     if let TypeName::Array(ar_typ_2, ar_sz_2) = &t2 {
                         if ar_sz_1 != ar_sz_2 {

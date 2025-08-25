@@ -27,7 +27,7 @@ pub struct Program {
     pub lines: AstProgram, 
     pub scope : Scope,
     pub global_vars : HashMap<String, (Type, Expression)>,
-    pub function_defs : HashMap<String, (Vec<Type>, Option<Type>)>,
+    pub function_defs : HashMap<String, (Vec<(String, Type)>, Option<Type>)>,
     pub functions : HashMap<String, (Vec<(String, Type)>, Option<Type>, AstBlock)>,
     keywords: HashSet<String>
 }
@@ -63,14 +63,40 @@ pub fn create_program(ast: AstProgram) -> Program {
     Program {lines: ast, scope: Scope { variables: HashMap::new(), outer_scope: Box::new(None) }, 
     global_vars: HashMap::new(),
     functions: HashMap::new(), function_defs: HashMap::from([
-        (String::from("circle"), (vec![int_type(), int_type(), int_type()], None)),
-        (String::from("line"), (vec![int_type(), int_type(), int_type(), int_type()], None)),
-        (String::from("rectangle"), (vec![int_type(), int_type(), int_type(), int_type()], None)),
-        (String::from("setLineColor"), (vec![color_type()], None)),
-        (String::from("setFigureColor"), (vec![color_type()], None)),
-        (String::from("setLineWidth"), (vec![int_type()], None)),
+        (String::from("circle"), (vec![
+            (String::from("x"), int_type()),
+            (String::from("y"), int_type()),
+            (String::from("radius"), int_type())
+        ], None)),
+        (String::from("line"), (vec![
+            (String::from("x1"), int_type()),
+            (String::from("y1"), int_type()),
+            (String::from("x2"), int_type()),
+            (String::from("y2"), int_type())
+        ], None)),
+        (String::from("rectangle"), (vec![
+            (String::from("x1"), int_type()),
+            (String::from("y1"), int_type()),
+            (String::from("x2"), int_type()),
+            (String::from("y2"), int_type())
+        ], None)),
+        (String::from("setLineColor"), (vec![
+            (String::from("color"), color_type())
+        ], None)),
+        (String::from("setFigureColor"), (vec![
+            (String::from("color"), color_type())
+        ], None)),
+        (String::from("setLineWidth"), (vec![
+            (String::from("width"), int_type())
+        ], None)),
         (String::from("polygon"), (vec![], None)), // at least 6 Ints for polygon
-        (String::from("arc"), (vec![int_type(), int_type(), int_type(), int_type(), int_type()], None)),
+        (String::from("arc"), (vec![
+            (String::from("circle_x"), int_type()),
+            (String::from("circle_y"), int_type()),
+            (String::from("radius"), int_type()),
+            (String::from("angle_from"), int_type()),
+            (String::from("angle_to"), int_type())
+        ], None)),
     ]), keywords: HashSet::from(["circle", "line", "rectangle", 
                     "setLineColor", "setFigureColor", "setLineWidth", "polygon", "arc",
                     "for", "while", "global", "func", "if", "else",
@@ -120,7 +146,7 @@ impl Program {
                             return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be the name of a variable", argname).into() }); 
                         }
                     }
-                    self.function_defs.insert(func.name.clone(), (func.args.iter().map(|(_, t)| t.clone()).collect(), func.return_type.clone()));
+                    self.function_defs.insert(func.name.clone(), (func.args.clone(), func.return_type.clone()));
                 }
                 for (name, (typ, expr)) in &forest.1 {
                     if self.keywords.contains(name) {
@@ -146,7 +172,7 @@ impl Program {
                                 Primitive(Bool) => Expression::Value(BaseValue::Bool(false)),
                                 Primitive(Color) => Expression::Value(BaseValue::RandomColor),
                                 Array(_, _) => {
-                                    Expression::Value(BaseValue::Array(None, vec![]))
+                                    Expression::Value(BaseValue::Array(vec![]))
                                 }
                             }
                         };
@@ -334,12 +360,12 @@ impl Program {
             if params.len() != args.len() {
                 return Some(Error::LogicError { message: format!("Wrong number of arguments for command {}: got {}, expected {}", name, args.len(), params.len()).into() });
             }
-            for i in 0 .. params.len() {
+            for (i, (param_name,param_type)) in params.iter().enumerate() {
                 match self.clone().type_check_expr(&args[i]) {
                     Err(error) => return Some(error),
                     Ok(arg_type) => {
-                        if arg_type.type_name != params[i].type_name {
-                            return Some(Error::TypeError { message: format!("Wrong type of argument number {} for command {}: got {:?}, expected {:?}", i, name, arg_type, params[i]).into() });
+                        if arg_type.type_name != param_type.type_name {
+                            return Some(Error::TypeError { message: format!("Wrong type of argument '{}' for command {}: got {:?}, expected {:?}", param_name, name, arg_type, params[i]).into() });
                         }
                     }
                 }
@@ -520,7 +546,7 @@ impl Program {
             BaseValue::Color(_, _, _) => Ok(Type::typ(Color)),
             BaseValue::RandomColor => Ok(Type::typ(Color)),
             BaseValue::Float(_) => Ok(Type::typ(Float)),
-            BaseValue::Array(inner_type, arr) => {
+            BaseValue::Array(arr) => {
                 let types: Result<Vec<Type>, Error> = arr.iter()
                     .map(|item| self.type_check_baseval(item))
                     .collect();
@@ -528,18 +554,29 @@ impl Program {
                 if types.is_empty() {
                     return Ok(Type{type_name:Array(Box::new(None), 0), is_const: false});
                 }
-                if inner_type.is_none() {
-                    return Err(Error::ParseError { message: "Array type is not defined".into() });
-                }
-                let inner_type = &inner_type.clone().unwrap();
+                let inner_type = &types.first().unwrap().clone();
                 
                 if types.iter().any(|t| t.type_name != inner_type.type_name) {
                     return Err(Error::TypeError { message: format!("Array elements must all be of type {:?}, got {:?}", inner_type, types).into() });
                 }
                 Ok(Type{type_name:Array(Box::new(Some(inner_type.clone())), arr.len()), is_const: false})
             },
-            BaseValue::FunctionCall(_,_, return_type ) => {
-                return Ok(return_type.clone());
+            BaseValue::FunctionCall(name,arg_list, return_type ) => {
+                match self.function_defs.get(name) {
+                    None => Err(Error::TypeError { message: format!("Unknown function {}", name).into() }),
+                    Some((arg_defs, _)) => {
+                        if arg_list.len() != arg_defs.len() {
+                            return Err(Error::TypeError { message: format!("Funcion '{}' expects {} arguments, but got {}", name, arg_defs.len(), arg_list.len()).into() })
+                        }
+                        for (i, (arg_name, arg_def)) in arg_defs.iter().enumerate() {
+                            let expr_type = self.type_check_expr(arg_list.get(i).unwrap())?;
+                            if !arg_def.can_assign(&expr_type) {
+                                return Err(Error::TypeError { message: format!("Funcion '{}' expects argument '{}' of type '{}', but got '{}'", name, arg_name, arg_def.to_string(), expr_type.to_string()).into() })
+                            }
+                        } 
+                        Ok(return_type.clone())
+                    }
+                }
             }
         }
     }

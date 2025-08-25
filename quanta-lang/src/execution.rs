@@ -1,7 +1,7 @@
 use std::{collections::HashMap};
 
 use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, BaseValue, Expression, Operator, Type, UnaryOperator, VariableCall}, error::Error};
-
+use quanta_parser::ast::BaseType;
 use crate::{utils::{canvas::Canvas, message::Message}, program::Program};
 use js_sys::Math;
 
@@ -65,7 +65,7 @@ macro_rules! expect_arg {
                         $fname,
                         __arg_index,            
                         stringify!($Variant),
-                        other.get_type().to_string()
+                        other.get_type(&|_| Some(Type::typ(BaseType::Int)))?.to_string()
                     ).into(),
                 });
             }
@@ -145,7 +145,7 @@ impl Execution {
                 }
                 let mut array = maybe_array.unwrap();
                 while integer_indices.len() > 0 {
-                    if let BaseValue::Array(_, elems) = array {
+                    if let BaseValue::Array(elems) = array {
                         let index = integer_indices.remove(0);
                         if index < 0 || index as usize >= elems.len() {
                             return Err(Error::RuntimeError { message: format!("Index out of bounds for array {}: {}", name, index).into() });

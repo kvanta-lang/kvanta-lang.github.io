@@ -403,29 +403,13 @@ fn build_ast_from_value(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
             for item in val.into_inner() {
                 elements.push(self.build_ast_from_value(item)?);
             }
-            if elements.is_empty() {
-                return Ok(BaseValue::Array(None, elements));
-            }
-            let first_type = elements[0].get_type();
-            if elements.iter().any(|e| e.get_type() != first_type) {
-                return Err(Error::TypeError { message: "All elements in the array must be of the same type".into() });
-            }
-            Ok(BaseValue::Array(Some(Type{type_name: first_type, is_const: false}), elements))
+            Ok(BaseValue::Array(elements))
         },
         Rule::function_call => {
             let mut iter = val.into_inner().into_iter();
             let name = self.build_ast_from_ident(iter.next().unwrap())?;
             let args = self.build_ast_from_arglist(iter)?;
-            if let Some((arg_types, return_type)) = self.function_signatures.get(&name) {
-                if args.len() != arg_types.len() {
-                    return Err(Error::TypeError { message: format!("Function {} needs {} arguments, but got {}", name, arg_types.len(), args.len()).into() });
-                }
-                for (i, arg_type) in arg_types.iter().enumerate() {
-                    let got_type = args.get(i).unwrap().get_type()?;
-                    if !arg_type.can_assign(&Type{type_name: got_type.clone(), is_const: false}) {
-                        return Err(Error::TypeError { message: format!("Cannot assign value of type {} to a variable of type {}", &got_type.to_string(), arg_type.to_string()).into() });
-                    }
-                }
+            if let Some((_, return_type)) = self.function_signatures.get(&name) {
                 if let Some(typ) = return_type {
                     Ok(BaseValue::FunctionCall(name, args, typ.clone()))
                 } else {
