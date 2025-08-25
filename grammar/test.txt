@@ -24,7 +24,7 @@ func main() {
             v = 4;
         }
     }
-    circle(add(200, 1, 10), 240, v2);
+    circle(add(200, 15), 240, v2);
     some();
 }
 

@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt};
 
 use pest::iterators::Pairs;
 
-use crate::Rule;
+use crate::{error::Error, Rule};
 
 pub mod builder;
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -118,7 +118,7 @@ impl Type {
             } else {
                 return false;
             }
-        }    
+        }  
         return true;
     }
 }
@@ -255,6 +255,44 @@ pub enum AstNode {
     If      { clause: Expression, block: AstBlock, else_block: Option<AstBlock>},
     Return  { expr: Expression },
 }
+
+impl Expression {
+    pub fn get_type(&self) -> Result<TypeName, Error> {
+        let type_mismatch = Err(Error::TypeError { message: format!("Type mismatch error").into() });
+        match &self {
+            Expression::Value(base_value) => Ok(base_value.get_type()),
+            Expression::Unary(_, expr) => expr.get_type(),
+            Expression::Binary(_, e1, e2) => {
+                let t1 = e1.get_type()?;
+                let t2 = e2.get_type()?;
+                if let TypeName::Array(ar_typ_1, ar_sz_1) = &t1 {
+                    if let TypeName::Array(ar_typ_2, ar_sz_2) = &t2 {
+                        if ar_sz_1 != ar_sz_2 {
+                            return type_mismatch;
+                        }
+                        if ar_typ_1.is_none() && ar_typ_2.is_none() {
+                            return Ok(t1);
+                        }
+                        if ar_typ_1.is_none() || ar_typ_2.is_none() {
+                            return type_mismatch;
+                        }
+                        let ar_typ_1 = ar_typ_1.clone().unwrap();
+                        let ar_typ_2 = ar_typ_2.clone().unwrap();
+                        if ar_typ_1.can_assign(&ar_typ_2) {
+                            return Ok(t1);
+                        } else {
+                            return type_mismatch;
+                        }
+                    }
+                    return type_mismatch;
+                }
+                return if t1 == t2 { Ok(t1) } else { type_mismatch }
+            },
+        }
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub struct AstBlock {
     pub nodes : Vec<AstNode>

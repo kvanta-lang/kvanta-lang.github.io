@@ -9,7 +9,7 @@ use super::{AstBlock, AstNode, Expression, Operator,  BaseType, BaseValue, goes_
 
 
 pub struct AstBuilder {
-    pub function_signatures : HashMap<String, Option<Type>>
+    pub function_signatures : HashMap<String, (Vec<Type>, Option<Type>)>
 }
 
 impl AstBuilder {
@@ -45,7 +45,7 @@ fn build_ast_from_forest(&mut self, statements: Pairs<Rule>) -> Result<Functions
         match pair.as_rule() {
             Rule::function => {
                 let res = self.get_function_signature(pair.into_inner())?;
-                self.function_signatures.insert(res.name.clone(), res.return_type.clone());
+                self.function_signatures.insert(res.name.clone(), (res.args.iter().map(|(_, t)| t.clone()).collect(), res.return_type.clone()));
                 half_functions.push(res);
             }
             Rule::global_block => {
@@ -416,8 +416,16 @@ fn build_ast_from_value(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
             let mut iter = val.into_inner().into_iter();
             let name = self.build_ast_from_ident(iter.next().unwrap())?;
             let args = self.build_ast_from_arglist(iter)?;
-            if let Some(return_type) = self.function_signatures.get(&name) {
-                if 
+            if let Some((arg_types, return_type)) = self.function_signatures.get(&name) {
+                if args.len() != arg_types.len() {
+                    return Err(Error::TypeError { message: format!("Function {} needs {} arguments, but got {}", name, arg_types.len(), args.len()).into() });
+                }
+                for (i, arg_type) in arg_types.iter().enumerate() {
+                    let got_type = args.get(i).unwrap().get_type()?;
+                    if !arg_type.can_assign(&Type{type_name: got_type.clone(), is_const: false}) {
+                        return Err(Error::TypeError { message: format!("Cannot assign value of type {} to a variable of type {}", &got_type.to_string(), arg_type.to_string()).into() });
+                    }
+                }
                 if let Some(typ) = return_type {
                     Ok(BaseValue::FunctionCall(name, args, typ.clone()))
                 } else {
