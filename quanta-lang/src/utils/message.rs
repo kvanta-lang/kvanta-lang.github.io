@@ -40,6 +40,16 @@ impl Message {
     pub fn from_canvas(canvas: Canvas) -> Message {
         Message { error_code:0, error_message: String::from(""), canvas }
     }
+
+    pub fn get_commands(&self) -> Vec<String>
+    {
+        self.canvas.get_commands()
+    }
+
+    pub fn get_error_message(&self) -> String
+    {
+        self.error_message.clone()
+    }
 }
 
 use std::fmt;

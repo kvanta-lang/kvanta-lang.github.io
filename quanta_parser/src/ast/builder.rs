@@ -248,10 +248,12 @@ fn build_ast_from_simple_expression_inner(&self, expression: Pair<Rule>) -> Resu
             let mut iter = expression.into_inner().into_iter();
             let operator = iter.next().unwrap();
             let right = self.build_ast_from_simple_expression_inner(iter.next().unwrap())?;
-            if operator.as_str() == "-" {
+            if operator.as_str().trim() == "-" {
                 Ok(SimpleExpression::Unary(super::UnaryOperator::UnaryMinus, right.into()))
+            } else if operator.as_str().trim() == "!" {
+                Ok(SimpleExpression::Unary(super::UnaryOperator::NOT, right.into()))
             } else {
-                Err(Error::ParseError { message: format!("Unknown unary operator {}", operator.as_str()).into() })
+                Err(Error::ParseError { message: format!("Unknown unary operator '{}'", operator.as_str()).into() })
             }
         },
         Rule::dyadicExpr => {
@@ -296,7 +298,9 @@ fn build_ast_from_simple_expression_inner(&self, expression: Pair<Rule>) -> Resu
 
 fn build_ast_from_expression(&self, expression: Pair<Rule>) -> Result<Expression, Error> {
     let expr = self.build_ast_from_expression_inner(expression)?;
+    println!("Expression before correction: {:?}", expr);
     let (res, _) = self.improve_expr(expr);
+    println!("Expression after correction: {:?}", res);
     Ok(res)
 }
 
@@ -308,6 +312,8 @@ fn build_ast_from_expression_inner(&self, expression: Pair<Rule>) -> Result<Expr
             let right = self.build_ast_from_expression_inner(iter.next().unwrap())?;
             if operator.as_str() == "-" {
                 Ok(Expression::Unary(super::UnaryOperator::UnaryMinus, right.into()))
+            } else if operator.as_str() == "!" {
+                Ok(Expression::Unary(super::UnaryOperator::NOT, right.into()))
             } else {
                 Err(Error::ParseError { message: format!("Unknown unary operator {}", operator.as_str()).into() })
             }

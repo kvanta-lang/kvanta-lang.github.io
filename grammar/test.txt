@@ -1,56 +1,8 @@
-func add(int x, array<int, 3> y) -> int {
-    x = x + 1;
-    rectangle(100, 100, x, 100);
-    return x + y[2];
+int x = 5;
+float t = 4.5;
+if ( (x >= 5) && (t < 5.0) && (x != 0) ) {
+    setFigureColor(Color::Yellow);
+    circle(x+5, x+3, x-1);
+} else {
+    rectangle(0,0,1,1);
 }
-
-global {
-    int v = 100;
-    const int v2 = 45;
-    int p = 300;
-    int func1 = 3;
-}
-
-func main() {
-    int p2 = 3;
-    const array<int, 3> nums = {1, 2, 3};
-    for i in (1..2) {
-        v = 300;
-        circle(i,i,10);
-        if (i > 0) {
-            v = 4;
-        }
-    }
-    array<int, 3> params = {10, 12, 15};
-    circle(add(200, params), 240, v2);
-    some();
-}
-
-func some() { 
-  circle(320, 240, 100);
-  setFigureColor(Color::Red);
-  setLineColor(Color::Green);
-  circle(320, 240, 50);
-
-  array<int,3> betters = {1, 2, 3};
-  betters[1] = 0;
-
-
-  rectangle(100, 100, 200, 200);
-
-  setFigureColor(Color::Blue);
-  rectangle(125, 125, 175, 175);
-
-  for i in (0..10) {
-    setFigureColor(Color::Red);
-    int a = 50;
-    rectangle(0, i * a, (i+1) * a, (i+1) * a);
-  }
-
-    const array<int,3> letters = {0, 100, 200};
-    letters[2] = 500;
-    circle(letters[2], letters[2], letters[1]);
-}
-
-
-

@@ -48,7 +48,7 @@ pub struct Execution {
 }
 
 fn color_to_str(r: &u8, g : &u8, b: &u8) -> String {
-    let s = format!("#{:02x}{:02x}{:02x}", r, g, b);
+    let s = format!("#{:02x}{:02x}{:02x}", r, g, b).to_lowercase();
     s
 }
 
@@ -83,7 +83,7 @@ impl Execution {
             global_var_definitions: prog.global_vars.clone(),
             canvas: Canvas::default(),
             functions: prog.functions.clone(),
-            figure_color: "#FFFFFF".to_string(),
+            figure_color: "#ffffff".to_string(),
             line_color: "#000000".to_string(),
             line_width: 1,
         }
@@ -495,9 +495,15 @@ impl Execution {
                             BaseValue::Float(num) => Ok(BaseValue::Float((-1.0) * num)),
                             BaseValue::Bool(_) => Err(Error::RuntimeError { message: "Minus bool: {}".into() }),
                             BaseValue::Color(_, _, _) => Err(Error::RuntimeError { message: "Minus color: {}".into() }),
-                            _ =>unreachable!("Unexpected code 3")
+                            _ => unreachable!("Unexpected code 3")
                         }
                     },
+                    UnaryOperator::NOT => {
+                        match inner_val {
+                            BaseValue::Bool(val) => Ok(BaseValue::Bool(!val)),
+                            _ => Err(Error::RuntimeError { message: "Unary not only allowed on bool: {}".into() })
+                        }
+                    }
                     UnaryOperator::Parentheses => Ok(inner_val)
                 }
             },

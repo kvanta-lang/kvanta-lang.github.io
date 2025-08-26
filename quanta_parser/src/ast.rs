@@ -180,6 +180,7 @@ impl Eq for BaseValue {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnaryOperator {
     UnaryMinus,
+    NOT,
     Parentheses
 }
 
@@ -211,19 +212,21 @@ pub fn is_arith(op : Operator) -> bool {
 }
 
 fn prec(op : Operator) -> i32 {
-    if op == Operator::AND || op == Operator::OR {
+    if op == Operator::OR {
         return 10;
+    }else if op == Operator::AND {
+        return 9;
     } else if op == Operator::Mult || op == Operator::Div || op == Operator::Mod {
-        return 6;
-    } else if op == Operator::Plus || op == Operator::Minus {
         return 4;
+    } else if op == Operator::Plus || op == Operator::Minus {
+        return 6;
     } else {
         return 8;
     }
 }
  
 pub fn goes_before(op1 : Operator,  op2: Operator) -> bool {
-    return prec(op1) >= prec(op2)
+    return prec(op1) < prec(op2)
 }
 
 

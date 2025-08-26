@@ -4,6 +4,8 @@ mod program;
 mod execution;
 
 use wasm_bindgen::prelude::*;
+
+use crate::compiler::compile;
 //use quanta_parser::parse_text;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -32,3 +34,14 @@ pub fn compile_code(source : &str) -> String {
 // arc 200 160 110 20 320 stroke=purple width=6".to_string()
     compiler::compilation_result(source)
 }
+
+#[test]
+    fn test_file() {
+        let file_path = "../grammar/test.txt";
+
+        let contents = std::fs::read_to_string(file_path)
+            .expect("Should have been able to read the file");
+        //assert!(contents.len() > 0);
+        let result = compile(&contents);
+        println!("{}\n=====================================", result);
+    }

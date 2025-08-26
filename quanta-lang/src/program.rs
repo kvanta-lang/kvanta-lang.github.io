@@ -473,6 +473,14 @@ impl Program {
                         if inner_type.type_name == Primitive(Float) {Ok(Type::typ(Float))} else 
                         {Err(Error::TypeError { message: format!("Type mismatch in expression: {:?}", expr).into() })}
                     },
+                    UnaryOperator::NOT => {
+                        let inner_type = self.clone().type_check_expr(&*inner)?;
+                        if inner_type.type_name == Primitive(Bool) {
+                            Ok(Type::typ(Bool))
+                        } else {
+                            Err(Error::TypeError { message: format!("Type mismatch in expression: {:?}", expr).into() })
+                        }
+                    },
                     UnaryOperator::Parentheses =>  self.clone().type_check_expr(&*inner),
                 }
             },
