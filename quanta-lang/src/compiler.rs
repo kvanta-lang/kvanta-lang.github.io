@@ -469,7 +469,6 @@ mod tests {
         let src = r#"
             if (1 == 1) {
                 setFigureColor(Color::Red);
-                rectangle(0,0, 10,10);
             }
             rectangle(0,0, 10,10);
         "#;

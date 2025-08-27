@@ -32,6 +32,11 @@ impl Scope {
         }
         None
     }
+
+    fn clear(&mut self) {
+        self.variables = HashMap::new();
+        self.outer_scope = None;
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -89,11 +94,17 @@ impl Execution {
         }
     }
 
-    fn create_subprogram(&self) -> Execution {
+    fn absorb_subscope(&mut self, other: Execution) 
+    {
+        self.scope = *other.clone().scope.outer_scope.unwrap();
+        self.absorb_subfunction(other);
+    }
+
+    fn create_subscope(&self) -> Execution {
         Execution {
             lines: self.lines.clone(),
             scope: Scope { variables: HashMap::new(), outer_scope: Some(Box::new(self.scope.clone())) },
-            canvas: Canvas::default(),
+            canvas: self.canvas.clone(),
             global_vars: self.global_vars.clone(),
             global_var_definitions: HashMap::new(),
             functions: self.functions.clone(),
@@ -101,6 +112,21 @@ impl Execution {
             line_color: self.line_color.clone(),
             line_width: self.line_width,
         }
+    }
+
+    fn create_subfunction(&self) -> Execution {
+        let mut e = self.create_subscope();
+        e.scope.clear();
+        e
+    }
+
+    fn absorb_subfunction(&mut self, other: Execution) 
+    {
+        self.global_vars = other.global_vars;
+        self.canvas = other.canvas;
+        self.figure_color = other.figure_color;
+        self.line_color = other.line_color;
+        self.line_width = other.line_width;
     }
 
     pub fn contains_key(&self, name: &str) -> bool {
@@ -262,19 +288,15 @@ impl Execution {
                     if params.len() != vals.len() {
                         return Err(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
                     }
-                    let mut new_exec = self.create_subprogram();
-                    new_exec.canvas = Canvas::default();
+                    let mut new_exec = self.create_subfunction();
                     for (i, param) in params.iter().enumerate() {
                         new_exec.scope.variables.insert(param.0.clone(), vals[i].clone());
                     }
-                    if let Some(return_value) = new_exec.execute_commands(body.nodes.clone())? {
-                        for command in new_exec.canvas.get_commands().iter() {
-                            self.canvas.add_command(command.clone());
-                        }
+                    let ret_val_wrap = new_exec.execute_commands(body.nodes.clone())?;
+                    self.absorb_subfunction(new_exec);
+
+                    if let Some(return_value) = ret_val_wrap {
                         return Ok(Some(return_value));
-                    }
-                    for command in new_exec.canvas.get_commands().iter() {
-                        self.canvas.add_command(command.clone());
                     }
                     return Ok(None);
                 }
@@ -325,7 +347,7 @@ impl Execution {
             },
             AstProgram::Forest(ref funcs) => {
                 for (name, (_, expr)) in &self.global_var_definitions {
-                    let mut new_exec = self.create_subprogram();
+                    let mut new_exec = self.create_subscope();
                     match new_exec.calculate_expression(expr.clone()) {
                         Ok(val) => {
                             self.global_vars.insert(name.clone(), val);
@@ -366,7 +388,7 @@ impl Execution {
                 
                 AstNode::If { clause, block, else_block } => {
                     if let BaseValue::Bool(val) = self.calculate_expression(clause)? {
-                        let mut new_exec = self.create_subprogram();
+                        let mut new_exec = self.create_subscope();
                         if val {
                             if let Some(return_value) = new_exec.execute_commands(block.nodes)? {
                                 return Ok(Some(return_value));
@@ -376,9 +398,7 @@ impl Execution {
                                 return Ok(Some(return_value));
                             }
                         }
-                        self.scope = *new_exec.scope.outer_scope.unwrap();
-                        self.global_vars = new_exec.global_vars;
-                        self.canvas = new_exec.canvas;
+                        self.absorb_subscope(new_exec);
                     } else {
                         return Err(Error::RuntimeError { message: "If clause must be a boolean expression".into() });
                     }
@@ -387,18 +407,14 @@ impl Execution {
                     loop {
                         let val = self.calculate_expression(clause.clone());
                         match val {
-                            Ok(BaseValue::Bool(t)) => {
-                                if t {
-                                    let mut new_exec = self.create_subprogram();
-                                    if let Some(return_value) = new_exec.execute_commands(block.nodes.clone())? {
-                                        self.canvas = new_exec.canvas;
-                                        self.scope = *new_exec.scope.outer_scope.unwrap();
-                                        self.global_vars = new_exec.global_vars;
+                            Ok(BaseValue::Bool(while_clause)) => {
+                                if while_clause {
+                                    let mut new_exec = self.create_subscope();
+                                    let result = new_exec.execute_commands(block.nodes.clone())?;
+                                    self.absorb_subscope(new_exec);
+                                    if let Some(return_value) = result {
                                         return Ok(Some(return_value));
                                     }
-                                    self.scope = *new_exec.scope.outer_scope.unwrap();
-                                    self.global_vars = new_exec.global_vars;
-                                    self.canvas = new_exec.canvas;
                                 } else {
                                     break;
                                 }
@@ -439,11 +455,9 @@ impl Execution {
 
     fn execute_for(&mut self, val: String, cycle : i32, block : AstBlock) -> Result<Option<BaseValue>, Error> {
         self.execute_init(val, Expression::Value(BaseValue::Int(cycle)));
-        let mut new_exec = self.create_subprogram();
+        let mut new_exec = self.create_subscope();
         let result = new_exec.execute_commands(block.nodes.clone());
-        self.global_vars = new_exec.global_vars;
-        self.scope = *new_exec.scope.outer_scope.unwrap();
-        self.canvas = new_exec.canvas;
+        self.absorb_subscope(new_exec);
         result        
     }
 
@@ -461,8 +475,7 @@ impl Execution {
                             vals.push(val);
                         }
                         if let Some((params, _, body)) = self.functions.get(&name) {
-                            let mut new_exec = self.create_subprogram();
-                            new_exec.scope.variables = HashMap::new(); // Clear the scope for the function call
+                            let mut new_exec = self.create_subfunction();
                             for (i, (name, _)) in params.iter().enumerate() {
                                 if i < vals.len() {
                                     new_exec.scope.variables.insert(name.clone(), vals[i].clone());
@@ -470,15 +483,11 @@ impl Execution {
                                     return Err(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
                                 }
                             }
-                            if let Some(return_value) = new_exec.execute_commands(body.nodes.clone())? {
-                                self.canvas = new_exec.canvas;
-                                self.scope = *new_exec.scope.outer_scope.unwrap();
-                                self.global_vars = new_exec.global_vars;
+                            let result = new_exec.execute_commands(body.nodes.clone())?;
+                            self.absorb_subfunction(new_exec);
+                            if let Some(return_value) = result {
                                 return Ok(return_value);
                             }
-                            self.canvas = new_exec.canvas;
-                            self.scope = *new_exec.scope.outer_scope.unwrap();
-                            self.global_vars = new_exec.global_vars;
                             return Err(Error::RuntimeError { message: format!("Function {} didn't return a value", name).into() });
                         }
                         Err(Error::RuntimeError { message: format!("Unknown function: {}", name).into() })
