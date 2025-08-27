@@ -53,7 +53,7 @@ export function drawScript(script){
     console.log("Script " + script);
   clearCanvas('#0a0f1f');
   ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
-  const lines = String(script||'').split(/\r?\n/);
+  const lines = String(script||'').split(/,/);
   for (const raw of lines) {
     const line = raw.trim();
     if (!line || line.startsWith('//')) continue;

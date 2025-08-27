@@ -2,36 +2,33 @@
 use quanta_parser::{parse_ast};
 use crate::execution::Execution;
 use crate::program::create_program;
-use crate::utils::canvas::construct_canvas;
-use crate::utils::message::Message;
+use crate::utils::message::CompilationMessage;
 use crate::Compiler;
 
-pub fn compilation_result(source : &str) -> String {
-    compile(source).to_string()
-}
+// pub fn compilation_result(source : &str) -> String {
+//     Compcompile(source).to_string()
+// }
 
 impl Compiler {
-    pub fn compile(source : &str) -> Message {
-    match parse_ast(source) {
-        Ok(ast) => {
-            let mut program = create_program(ast);
-            match program.type_check() {
-                Err(error) =>  {
-                    Message::create_error_message(error)
-                },
-                _ => {
-                    let (canvas, reader) = construct_canvas();
-                    let mut exec = Execution::from_program(program, canvas);
-                    exec.execute(reader)
+    pub fn compile(&mut self, source : &str) -> CompilationMessage {
+        match parse_ast(source) {
+            Ok(ast) => {
+                let mut program = create_program(ast);
+                match program.type_check() {
+                    Err(error) =>  {
+                        CompilationMessage::create_error_message(error)
+                    },
+                    _ => {
+                        self.execution = Some(Execution::from_program(program, self.canvas.clone()));
+                        CompilationMessage::default()
+                    }
                 }
             }
-        }
-        Err(err) => {
-            //println!("PaRSING ERROR: {}", err.to_string());
-            Message::create_error_message(err)
+            Err(err) => {
+                CompilationMessage::create_error_message(err)
+            }
         }
     }
-}
 }
 
 

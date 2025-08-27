@@ -63,8 +63,13 @@ function doRun() {
       console.log("Init wasm done");
       const src = editor.state.doc.toString();
       let compiler = Compiler.new();
-      const script = compiler.compile_code(src);     // Rust returns drawing commands (string)
+      const compilation_result = compiler.compile_code(src);   // Rust returns drawing commands (string)
+      if (compilation_result.error_code != 0) {
+        alert(compilation_result.error_message);
+      }
       console.log("Compiling done");
+      compiler.execute();
+      const script = compiler.get_commands();
       drawScript(script);              // render to Canvas2D
       //log("OK12\n" + script);
     } catch (e) {

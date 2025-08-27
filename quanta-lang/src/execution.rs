@@ -2,7 +2,7 @@ use std::{collections::HashMap};
 
 use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, BaseValue, Expression, Operator, Type, UnaryOperator, VariableCall}, error::Error};
 use quanta_parser::ast::BaseType;
-use crate::{program::Program, utils::{canvas::{Canvas, CanvasReader}, message::Message}};
+use crate::{program::Program, utils::canvas::Canvas};
 use js_sys::Math;
 
 #[derive(Debug, Clone)]
@@ -336,35 +336,27 @@ impl Execution {
         Some(Error::RuntimeError { message: "Couldn't set new value".into() })
     }
 
-    pub fn execute(&mut self, reader: CanvasReader) -> Message {
+    pub fn execute(&mut self) -> Result<(), Error> {
         match self.lines {
             AstProgram::Block(ref block) => {
-                if let Err(err) = self.execute_commands(block.nodes.clone()) {
-                    return Message::create_error_message(err);
-                }
-                Message::from_canvas(reader)
+                self.execute_commands(block.nodes.clone())?;
             },
             AstProgram::Forest(ref funcs) => {
                 for (name, (_, expr)) in &self.global_var_definitions {
                     let mut new_exec = self.create_subscope();
-                    match new_exec.calculate_expression(expr.clone()) {
-                        Ok(val) => {
-                            self.global_vars.insert(name.clone(), val);
-                        },
-                        Err(err) => return Message::create_error_message(err),
-                    }
+                    let val = new_exec.calculate_expression(expr.clone())?;
+                    self.global_vars.insert(name.clone(), val);
                 }
                 for func in &funcs.0 {
                     if func.name == "main" {
-                        if let Err(err) = self.execute_commands(func.block.nodes.clone()) {
-                            return Message::create_error_message(err);
-                        }
-                        return Message::from_canvas(reader);
+                        let mut new_exec = self.create_subscope();
+                        new_exec.execute_commands(func.block.nodes.clone())?;
                     }
                 }
-                return Message::create_error_message(Error::RuntimeError { message: "No main function found".into() });
+                return Err(Error::RuntimeError { message: "No main function found".into() });
             },
         }
+        Ok(())
         
     }
 
@@ -453,8 +445,8 @@ impl Execution {
     }
 
     fn execute_for(&mut self, val: String, cycle : i32, block : AstBlock) -> Result<Option<BaseValue>, Error> {
-        self.execute_init(val, Expression::Value(BaseValue::Int(cycle)));
         let mut new_exec = self.create_subscope();
+        new_exec.execute_init(val, Expression::Value(BaseValue::Int(cycle)));
         let result = new_exec.execute_commands(block.nodes.clone());
         self.absorb_subscope(new_exec);
         result        
