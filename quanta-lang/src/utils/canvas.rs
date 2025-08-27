@@ -1,38 +1,30 @@
 use wasm_bindgen::prelude::*;
-use std::fmt;
+use crossbeam_channel::{Receiver, Sender};
 
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
+
 pub struct Canvas {
-    commands: Vec<String>,
+    commands: Sender<String>,
 }
 
-impl Default for Canvas {
-    fn default() -> Canvas {
-        Canvas { commands: Vec::new() }
-    } 
+pub struct CanvasReader {
+    commands: Receiver<String>
+}
+
+pub fn construct_canvas() -> (Canvas, CanvasReader) {
+    let (tx, rx) = crossbeam_channel::unbounded();
+    (Canvas { commands: tx }, CanvasReader { commands: rx })
 }
 
 impl Canvas {
-    pub fn empty() -> Canvas {
-        Canvas::default()
-    }
-
     pub fn add_command(&mut self, c : String) {
-        self.commands.push(c);
-    }
-
-    pub fn get_commands(&self) -> Vec<String> {
-        self.commands.clone()
+        self.commands.send(c).expect("Compiler crashed, please try again!");
     }
 }
 
-
-impl fmt::Display for Canvas {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for line in &self.commands {
-            write!(f, "{}\n", line)?;
-        }
-        Ok(())
+impl CanvasReader {
+    pub fn get_commands(&mut self) -> Vec<String> {
+        self.commands.try_iter().collect()
     }
 }

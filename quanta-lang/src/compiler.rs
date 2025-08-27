@@ -2,25 +2,27 @@
 use quanta_parser::{parse_ast};
 use crate::execution::Execution;
 use crate::program::create_program;
+use crate::utils::canvas::construct_canvas;
 use crate::utils::message::Message;
+use crate::Compiler;
 
 pub fn compilation_result(source : &str) -> String {
     compile(source).to_string()
 }
 
-pub fn compile(source : &str) -> Message {
+impl Compiler {
+    pub fn compile(source : &str) -> Message {
     match parse_ast(source) {
         Ok(ast) => {
             let mut program = create_program(ast);
             match program.type_check() {
                 Err(error) =>  {
-                    //println!("cOMPILaTION ERROR: {}", error.to_string());
                     Message::create_error_message(error)
                 },
                 _ => {
-                    //println!("cOMPILaTION SUccESS!!!!!!!");
-                    let mut exec = Execution::from_program(program);
-                    exec.execute()
+                    let (canvas, reader) = construct_canvas();
+                    let mut exec = Execution::from_program(program, canvas);
+                    exec.execute(reader)
                 }
             }
         }
@@ -30,6 +32,9 @@ pub fn compile(source : &str) -> Message {
         }
     }
 }
+}
+
+
 
 #[cfg(test)]
 mod tests {

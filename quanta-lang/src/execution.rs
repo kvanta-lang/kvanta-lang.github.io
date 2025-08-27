@@ -2,7 +2,7 @@ use std::{collections::HashMap};
 
 use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, BaseValue, Expression, Operator, Type, UnaryOperator, VariableCall}, error::Error};
 use quanta_parser::ast::BaseType;
-use crate::{utils::{canvas::Canvas, message::Message}, program::Program};
+use crate::{program::Program, utils::{canvas::{Canvas, CanvasReader}, message::Message}};
 use js_sys::Math;
 
 #[derive(Debug, Clone)]
@@ -80,13 +80,13 @@ macro_rules! expect_arg {
 
 impl Execution {
 
-    pub fn from_program(prog : Program) -> Execution {
+    pub fn from_program(prog : Program, canv: Canvas) -> Execution {
         Execution {
             lines : prog.lines.clone(),
             scope : Scope { variables: HashMap::new(), outer_scope: None },
             global_vars: HashMap::new(),
             global_var_definitions: prog.global_vars.clone(),
-            canvas: Canvas::default(),
+            canvas: canv,
             functions: prog.functions.clone(),
             figure_color: "#ffffff".to_string(),
             line_color: "#000000".to_string(),
@@ -123,7 +123,6 @@ impl Execution {
     fn absorb_subfunction(&mut self, other: Execution) 
     {
         self.global_vars = other.global_vars;
-        self.canvas = other.canvas;
         self.figure_color = other.figure_color;
         self.line_color = other.line_color;
         self.line_width = other.line_width;
@@ -337,13 +336,13 @@ impl Execution {
         Some(Error::RuntimeError { message: "Couldn't set new value".into() })
     }
 
-    pub fn execute(&mut self) -> Message {
+    pub fn execute(&mut self, reader: CanvasReader) -> Message {
         match self.lines {
             AstProgram::Block(ref block) => {
                 if let Err(err) = self.execute_commands(block.nodes.clone()) {
                     return Message::create_error_message(err);
                 }
-                Message::from_canvas(self.canvas.clone())
+                Message::from_canvas(reader)
             },
             AstProgram::Forest(ref funcs) => {
                 for (name, (_, expr)) in &self.global_var_definitions {
@@ -360,7 +359,7 @@ impl Execution {
                         if let Err(err) = self.execute_commands(func.block.nodes.clone()) {
                             return Message::create_error_message(err);
                         }
-                        return Message::from_canvas(self.canvas.clone());
+                        return Message::from_canvas(reader);
                     }
                 }
                 return Message::create_error_message(Error::RuntimeError { message: "No main function found".into() });

@@ -12,7 +12,7 @@ import { quanta } from "./quanta-support.js";
 import { drawScript, log } from "./canvas-runtime.js";
 
 // WASM glue (wasm-pack output); adjust crate name/path
-import initWasm, { compile_code } from "../quanta-lang/pkg/quanta_lang.js"; 
+import initWasm, { Compiler } from "../quanta-lang/pkg/quanta_lang.js"; 
 
 const runBtn = document.getElementById("runBtn");
 
@@ -62,7 +62,8 @@ function doRun() {
       await initWasm();
       console.log("Init wasm done");
       const src = editor.state.doc.toString();
-      const script = compile_code(src);     // Rust returns drawing commands (string)
+      let compiler = Compiler.new();
+      const script = compiler.compile_code(src);     // Rust returns drawing commands (string)
       console.log("Compiling done");
       drawScript(script);              // render to Canvas2D
       //log("OK12\n" + script);
