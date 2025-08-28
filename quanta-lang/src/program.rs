@@ -147,7 +147,7 @@ impl Program {
                     if self.keywords.contains(&func.name) {
                         return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be the name of a function", func.name).into() });
                     }
-                    for (argname, t) in &func.args {
+                    for (argname, _) in &func.args {
                         if self.keywords.contains(argname) { 
                             return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be the name of a variable", argname).into() }); 
                         }

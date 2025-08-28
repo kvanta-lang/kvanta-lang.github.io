@@ -100,7 +100,6 @@ impl Runtime {
             lines : prog.lines.clone(),
             scope : Scope { variables: HashMap::new(), outer_scope: None },
             global_vars: Arc::clone(&global_vars),
-            global_var_definitions: Arc::clone(&global_var_defs),
             canvas: canv.clone(),
             functions: prog.functions.clone(),
             figure_color: Arc::clone(&fig_col),
