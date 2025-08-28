@@ -167,6 +167,7 @@ runBtn.addEventListener('click', () => {
 
 window.addEventListener('keydown', (e) => {
   if (!runtime) return;
+  if (document.activeElement !== canvas) return;
   try {
     console.log("Got key " + e.key);
     executeKey(e.key); // pass string like 'a', 'Enter', etc.
