@@ -4,7 +4,7 @@ use crate::execution::Execution;
 use crate::program::create_program;
 use crate::utils::canvas::construct_canvas;
 use crate::utils::message::CompilationMessage;
-use crate::{Compiler, utils::message::Runtime};
+use crate::{Compiler, runtime::Runtime};
 
 impl Compiler {
     pub fn compile(&mut self, source : &str) -> CompilationMessage {
@@ -17,7 +17,7 @@ impl Compiler {
                     },
                     Ok(_) => {
                         let (c, r) = construct_canvas();
-                        CompilationMessage::ok(Runtime::new(Execution::from_program(program, c), r))
+                        CompilationMessage::ok(Runtime::new(program, c, r))
                     }
                 }
             },

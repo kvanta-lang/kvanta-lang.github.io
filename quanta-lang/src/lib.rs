@@ -3,6 +3,7 @@ mod compiler;
 mod program;
 mod execution;
 mod tests;
+mod runtime;
 
 use wasm_bindgen::prelude::*;
 
