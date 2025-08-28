@@ -6,6 +6,7 @@ bufferCanvas.width = 1000;
 bufferCanvas.height = 1000;
 const ctx    = bufferCanvas.getContext('2d', { alpha: false });
 let isAnimation = false;
+let isCancelled = false;
 // FIXED SIZE: 1000x1000 logical pixels (scaled for HiDPI once)
 const CANVAS_W = 800, CANVAS_H = 800;
 const DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
@@ -16,6 +17,14 @@ ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 export function log(text) {
   if (typeof text !== 'string') text = String(text);
   logEl.textContent = text;
+}
+
+export function checkIsCancelled() {
+  return isCancelled;
+}
+
+export function cancelNow(value = true) {
+  isCancelled = value;
 }
 
 
@@ -56,11 +65,10 @@ function drawPolygon(nums,o){ if(nums.length<4) return; ctx.beginPath(); ctx.mov
 function drawArc(cx,cy,r,a0,a1,ccw,o){ ctx.beginPath(); ctx.arc(toPx(cx,'x'), toPx(cy,'y'), toPx(r,'x'), deg2rad(a0), deg2rad(a1), !!ccw); if(o.fill) ctx.fill(); if(o.stroke||!o.fill) ctx.stroke(); }
 
 export function drawScript(script, should_draw_frame=false){
-    console.log("Script " + script);
-  //clearCanvas('#0a0f1f');
   ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
   const lines = String(script||'').split(/,/);
   for (const raw of lines) {
+    if (isCancelled) { return; }
     const line = raw.trim();
     if (!line || line.startsWith('//')) continue;
     const tok = tokenize(line); if (!tok.length) continue;
@@ -80,11 +88,8 @@ export function drawScript(script, should_draw_frame=false){
     } catch (e) { console.warn('Error:', line, e); }
   }
   ctx.restore();
-  console.log("Draw");
   if (!isAnimation || should_draw_frame) {
-    console.log("Is not animation");
     drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     drawCtx.drawImage(bufferCanvas, 0, 0);
   }
-  console.log("DONE");
 }

@@ -382,7 +382,6 @@ impl Execution {
             },
         }
         Ok(())
-        
     }
 
     pub fn execute_commands(&mut self, nodes : Vec<AstNode>) -> Result<Option<BaseValue>, Error> {
