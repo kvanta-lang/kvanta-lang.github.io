@@ -20,10 +20,21 @@ let runtime = undefined;
 let isRunning = false;
 
 // starter code
-const startCode = `for i in (0..10000) {
-    circle(320, 240, 100);
+const startCode = 
+`
+func keyboard() {
+    setFigureColor(Color::Red);
+    rectangle(100, 100, 200, 200);
 }
-rectangle(0, 0, 100, 100);
+
+func main() {
+   setLineColor(Color::Green);
+   for i in (0..10000) {
+      circle(320, 240, i % 100);
+   }
+   rectangle(0, 0, 100, 100);
+}
+
 
 `;
 
@@ -58,6 +69,27 @@ async function startExecution() {
   let res = runtime.execute();
   console.log("EXECUTION ENDED: " + res);
 }
+
+async function executeKey(key) {
+  let res = runtime.execute_key(key);
+  console.log("EXECUTION ENDED: " + res);
+}
+
+async function executeMouse(x, y) {
+  let res = runtime.execute_mouse(x, y);
+  console.log("EXECUTION ENDED: " + res);
+}
+
+// window.addEventListener('keydown', (e) => {
+//   if (!runtime || !runtime.execute_key) return;
+
+//   try {
+//     console.log("Got key: " + e.key);
+//     (async () => {runtime.execute_key(e.key);})(); // pass string like 'a', 'Enter', etc.
+//   } catch (err) {
+//     console.warn('Keyboard runtime error:', err);
+//   }
+// });
 
 function doRun() {
   (async () => {
@@ -129,13 +161,38 @@ runBtn.addEventListener('click', () => {
   }
 });
 
-// Ctrl/Cmd+Enter
-addEventListener("keydown", (e) => {
-  const isMac = navigator.platform.toLowerCase().includes("mac");
-  if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "Enter") {
-    e.preventDefault();
-    doRun();
+window.addEventListener('keydown', (e) => {
+  if (!runtime) return;
+  try {
+    console.log("Got key " + e.key);
+    executeKey(e.key); // pass string like 'a', 'Enter', etc.
+  } catch (err) {
+    console.warn('Keyboard runtime error:', err);
   }
 });
+
+canvas.addEventListener('click', (e) => {
+  if (!runtime) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  try {
+    console.log("Mouse on x: " + x + " Y: " + y);
+    executeMouse(x, y);
+  } catch (err) {
+    console.warn('Mouse runtime error:', err);
+  }
+});
+
+// // Ctrl/Cmd+Enter
+// addEventListener("keydown", (e) => {
+//   const isMac = navigator.platform.toLowerCase().includes("mac");
+//   if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "Enter") {
+//     e.preventDefault();
+//     doRun();
+//   }
+// });
 
 editor.focus();

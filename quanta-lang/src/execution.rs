@@ -68,9 +68,9 @@ pub struct Execution {
     pub line_width : Arc<Mutex<i32>>,
 }
 
-fn color_to_str(r: &u8, g : &u8, b: &u8) -> Arc<Mutex<String>> {
+fn color_to_str(r: &u8, g : &u8, b: &u8) -> String {
     let s = format!("#{:02x}{:02x}{:02x}", r, g, b).to_lowercase();
-    Arc::new(Mutex::new(s))
+    s
 }
 
 macro_rules! expect_arg {
@@ -126,7 +126,7 @@ impl Execution {
             global_vars: self.global_vars.clone(),
             global_var_definitions: Arc::new(Mutex::new(HashMap::new())),
             functions: self.functions.clone(),
-            figure_color: self.figure_color.clone(),
+            figure_color: Arc::clone(&self.figure_color),
             line_color: self.line_color.clone(),
             line_width: self.line_width.clone(),
         }
@@ -244,7 +244,7 @@ impl Execution {
                     return Err(Error::RuntimeError { message: format!("Unknown array: {} ", name).into() });
                 }
                 let mut array = maybe_array.unwrap();
-                update_array(name.clone(), &mut array, integer_indices, val);
+                update_array(name.clone(), &mut array, integer_indices, val)?;
                 if self.set(name.clone(), array) { 
                     Ok(()) 
                 } else { 
@@ -311,14 +311,16 @@ impl Execution {
             },
             "setLineColor" => {
                 if let BaseValue::Color(r,g,b) = &vals[0] {
-                    self.line_color = color_to_str(r, g, b);
+                    let mut inner  = self.line_color.lock().unwrap();
+                    *inner = color_to_str(r, g, b);
                     Ok(None)
                 }
                 else if let BaseValue::RandomColor = &vals[0] {
                     let r = (255.0 * Math::random()) as u8;
                     let g = (255.0 * Math::random()) as u8;
                     let b = (255.0 * Math::random()) as u8;
-                    self.line_color = color_to_str(&r, &g, &b);
+                    let mut inner  = self.line_color.lock().unwrap();
+                    *inner = color_to_str(&r, &g, &b);
                     Ok(None)
                 }
                 else {
@@ -327,14 +329,16 @@ impl Execution {
             },
             "setFigureColor" => {
                 if let BaseValue::Color(r,g,b) = &vals[0] {
-                    self.figure_color = color_to_str(r, g, b);
+                    let mut inner  = self.figure_color.lock().unwrap();
+                    *inner = color_to_str(r, g, b);
                     Ok(None)
                 }
                 else if let BaseValue::RandomColor = &vals[0] {
                     let r = (255.0 * Math::random()) as u8;
                     let g = (255.0 * Math::random()) as u8;
                     let b = (255.0 * Math::random()) as u8;
-                    self.figure_color = color_to_str(&r, &g, &b);
+                    let mut inner  = self.figure_color.lock().unwrap();
+                    *inner =  color_to_str(&r, &g, &b);
                     Ok(None)
                 }
                 else {
@@ -344,7 +348,8 @@ impl Execution {
             "setLineWidth" => {
                 let width = expect_arg!("setLineWidth", vals, 0, Int(width) => *width);
                 if width >= 0 {
-                    self.line_width = Arc::new(Mutex::new(width));
+                    let mut inner  = self.line_width.lock().unwrap();
+                    *inner = width;
                     Ok(None)
                 } else {
                     Err(Error::RuntimeError { message: "Line width can't be negative!".into() })
@@ -441,6 +446,36 @@ impl Execution {
         Ok(())
     }
 
+    pub async fn execute_key(&mut self, _: String) -> Result<(), Error> {
+        match self.lines {
+            AstProgram::Block(_) => { Ok(())},
+            AstProgram::Forest(ref funcs) => {
+                for func in &funcs.0 {
+                    if func.name == "keyboard" {
+                        let mut new_exec = self.create_subscope();
+                        new_exec.execute_commands(func.block.nodes.clone()).await?;
+                    }
+                }
+                Ok(())
+            },
+        }
+    }
+
+    pub async fn execute_mouse(&mut self, _: i32, _:i32) -> Result<(), Error> {
+        match self.lines {
+            AstProgram::Block(_) => { Ok(())},
+            AstProgram::Forest(ref funcs) => {
+                for func in &funcs.0 {
+                    if func.name == "mouse" {
+                        let mut new_exec = self.create_subscope();
+                        new_exec.execute_commands(func.block.nodes.clone()).await?;
+                    }
+                }
+                Ok(())
+            },
+        }
+    }
+
     pub fn execute_commands<'a>(&'a mut self, nodes : Vec<AstNode>) -> Pin<Box<dyn Future<Output = Result<Option<BaseValue>, Error>> + 'a>> {
         Box::pin(async move {
             TimeoutFuture::new(1).await;
@@ -526,7 +561,7 @@ impl Execution {
 
     async fn execute_for(&mut self, val: String, cycle : i32, block : AstBlock) -> Result<Option<BaseValue>, Error> {
         let mut new_exec = self.create_subscope();
-        new_exec.execute_init(val, Expression::Value(BaseValue::Int(cycle))).await;
+        new_exec.execute_init(val, Expression::Value(BaseValue::Int(cycle))).await?;
         let result = new_exec.execute_commands(block.nodes.clone()).await;
         self.absorb_subscope(new_exec);
         result

@@ -9,20 +9,17 @@ use std::{collections::HashMap, fmt, sync::{Arc, Mutex}};
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct Runtime {
-    execution: Execution,
+    main_execution: Execution,
+    key_execution: Option<Execution>,
+    mouse_execution: Option<Execution>,
     canvas: CanvasReader,
-    global_vars : Arc<Mutex<HashMap<String, BaseValue>>>,
-    global_var_definitions: Arc<Mutex<HashMap<String, (Type, Expression)>>>,
-    figure_color : Arc<Mutex<String>>,
-    line_color : Arc<Mutex<String>>,
-    line_width : Arc<Mutex<i32>>,
 }
 
 
 #[wasm_bindgen]
 impl Runtime {
     pub fn execute(&self) {
-        let new_exec = self.execution.clone();
+        let new_exec = self.main_execution.clone();
         spawn_local(async move {
             match new_exec.clone().execute().await {
             Ok(_) => {},
@@ -31,7 +28,32 @@ impl Runtime {
             }
         }
         })
-        
+    }
+
+    pub fn execute_key(&self, key: String) {
+        if let Some(exec) = self.key_execution.clone() {
+                spawn_local(async move {
+                match exec.clone().execute_key(key).await {
+                Ok(_) => {},
+                Err(err) => {
+                    panic!("Got error: {}", err);
+                }
+            }
+            })
+        }   
+    }
+
+    pub fn execute_mouse(&self, x: i32, y:i32) {
+        if let Some(exec) = self.mouse_execution.clone() {
+                spawn_local(async move {
+                match exec.clone().execute_mouse(x, y).await {
+                Ok(_) => {},
+                Err(err) => {
+                    panic!("Got error: {}", err);
+                }
+            }
+            })
+        }   
     }
 
     pub fn get_commands(&mut self) -> Vec<CommandBlock> {
@@ -75,20 +97,30 @@ impl Runtime {
             scope : Scope { variables: HashMap::new(), outer_scope: None },
             global_vars: Arc::clone(&global_vars),
             global_var_definitions: Arc::clone(&global_var_defs),
-            canvas: canv,
+            canvas: canv.clone(),
             functions: prog.functions.clone(),
             figure_color: Arc::clone(&fig_col),
             line_color: Arc::clone(&lin_col),
             line_width: Arc::clone(&lin_wid),
         };
+
+        let keyboard_exec = if exec.functions.contains_key("keyboard") {
+             Some(exec.clone())
+        } else { 
+            None 
+        };
+
+        let mouse_exec = if exec.functions.contains_key("mouse") { 
+            Some(exec.clone())
+        } else { 
+            None 
+        };
+
         Runtime { 
-            execution: exec, 
-            canvas: canvas, 
-            global_vars: global_vars,
-            global_var_definitions: global_var_defs,
-            figure_color: fig_col,
-            line_color: lin_col,
-            line_width: lin_wid
+            main_execution: exec, 
+            key_execution: keyboard_exec,
+            mouse_execution: mouse_exec,
+            canvas: canvas
         }
     }
 }
