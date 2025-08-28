@@ -21,10 +21,13 @@ let isRunning = false;
 
 // starter code
 const startCode = 
-`
-func keyboard() {
+`func mouse(int x, int y) {
     setFigureColor(Color::Red);
-    rectangle(100, 100, 200, 200);
+    rectangle(x, y, x+100, y+100);
+}
+
+func keyboard(int key) {
+    setFigureColor(Color::Green);
 }
 
 func main() {
@@ -34,6 +37,7 @@ func main() {
    }
    rectangle(0, 0, 100, 100);
 }
+
 
 
 `;
@@ -101,7 +105,7 @@ function doRun() {
       await initWasm();
       const src = editor.state.doc.toString();
       let compiler = Compiler.new();
-      const compilation_result = compiler.compile_code(src);   // Rust returns drawing commands (string)
+      const compilation_result = await compiler.compile_code(src);   // Rust returns drawing commands (string)
       if (compilation_result.error_code != 0) {
         alert(compilation_result.get_error_message());
         runBtn.disabled = false;

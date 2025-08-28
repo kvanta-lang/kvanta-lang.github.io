@@ -118,7 +118,7 @@ impl Execution {
         self.absorb_subfunction(other);
     }
 
-    fn create_subscope(&self) -> Execution {
+    pub fn create_subscope(&self) -> Execution {
         Execution {
             lines: self.lines.clone(),
             scope: Scope { variables: HashMap::new(), outer_scope: Some(Box::new(self.scope.clone())) },
@@ -427,12 +427,6 @@ impl Execution {
                 self.canvas.add_command("end".into());
             },
             AstProgram::Forest(ref funcs) => {
-                let defs = self.global_var_definitions.lock().unwrap();
-                for (name, (_, expr)) in defs.iter() {
-                    let mut new_exec = self.create_subscope();
-                    let val = new_exec.calculate_expression(expr.clone()).await?;
-                    self.global_vars.lock().unwrap().insert(name.clone(), val);
-                }
                 for func in &funcs.0 {
                     if func.name == "main" {
                         let mut new_exec = self.create_subscope();
@@ -446,13 +440,14 @@ impl Execution {
         Ok(())
     }
 
-    pub async fn execute_key(&mut self, _: String) -> Result<(), Error> {
+    pub async fn execute_key(&mut self, key: String) -> Result<(), Error> {
         match self.lines {
             AstProgram::Block(_) => { Ok(())},
             AstProgram::Forest(ref funcs) => {
                 for func in &funcs.0 {
                     if func.name == "keyboard" {
                         let mut new_exec = self.create_subscope();
+                        new_exec.execute_init(func.args.get(0).unwrap().0.clone(), Expression::Value(BaseValue::Int(0))).await?;
                         new_exec.execute_commands(func.block.nodes.clone()).await?;
                     }
                 }
@@ -461,13 +456,15 @@ impl Execution {
         }
     }
 
-    pub async fn execute_mouse(&mut self, _: i32, _:i32) -> Result<(), Error> {
+    pub async fn execute_mouse(&mut self, x: i32, y:i32) -> Result<(), Error> {
         match self.lines {
             AstProgram::Block(_) => { Ok(())},
             AstProgram::Forest(ref funcs) => {
                 for func in &funcs.0 {
                     if func.name == "mouse" {
                         let mut new_exec = self.create_subscope();
+                        new_exec.execute_init(func.args.get(0).unwrap().0.clone(), Expression::Value(BaseValue::Int(x))).await?;
+                        new_exec.execute_init(func.args.get(1).unwrap().0.clone(), Expression::Value(BaseValue::Int(y))).await?;
                         new_exec.execute_commands(func.block.nodes.clone()).await?;
                     }
                 }
@@ -569,7 +566,7 @@ impl Execution {
 
 
 
-    fn calculate_expression<'a>(
+    pub fn calculate_expression<'a>(
         &'a mut self,
         expr: Expression,
     ) -> Pin<Box<dyn Future<Output = Result<BaseValue, Error>> + 'a>> {

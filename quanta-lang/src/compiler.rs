@@ -7,7 +7,7 @@ use crate::utils::message::CompilationMessage;
 use crate::{Compiler, runtime::Runtime};
 
 impl Compiler {
-    pub fn compile(&mut self, source : &str) -> CompilationMessage {
+    pub async fn compile(&mut self, source : &str) -> CompilationMessage {
         match parse_ast(source) {
             Ok(ast) => {
                 let mut program = create_program(ast);
@@ -17,7 +17,7 @@ impl Compiler {
                     },
                     Ok(_) => {
                         let (c, r) = construct_canvas();
-                        CompilationMessage::ok(Runtime::new(program, c, r))
+                        CompilationMessage::ok(Runtime::new(program, c, r).await)
                     }
                 }
             },

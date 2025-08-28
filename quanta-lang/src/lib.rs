@@ -40,8 +40,8 @@ impl Compiler {
         Compiler{}
     }
 
-    pub fn compile_code(&mut self, source : &str) -> CompilationMessage {
-        self.compile(source)
+    pub async fn compile_code(&mut self, source : &str) -> CompilationMessage {
+        self.compile(source).await
     }
 }
 
@@ -52,6 +52,6 @@ impl Compiler {
         let contents = std::fs::read_to_string(file_path)
             .expect("Should have been able to read the file");
         //assert!(contents.len() > 0);
-        let result = Compiler::new().compile(&contents);
-        println!("{}\n=====================================", result);
+        //let result = Compiler::new().compile(&contents);
+       // println!("{}\n=====================================", result.await);
     }

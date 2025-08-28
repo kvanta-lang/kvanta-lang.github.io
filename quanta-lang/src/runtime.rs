@@ -13,12 +13,16 @@ pub struct Runtime {
     key_execution: Option<Execution>,
     mouse_execution: Option<Execution>,
     canvas: CanvasReader,
+    global_error: Option<Error>,
 }
 
 
 #[wasm_bindgen]
 impl Runtime {
     pub fn execute(&self) {
+        if self.global_error.is_some() {
+            panic!("Got error: {}", self.global_error.clone().unwrap());
+        }
         let new_exec = self.main_execution.clone();
         spawn_local(async move {
             match new_exec.clone().execute().await {
@@ -84,7 +88,7 @@ impl Runtime {
 }
 
 impl Runtime {
-    pub fn new(prog : Program, canv: Canvas, canvas: CanvasReader) -> Runtime {
+    pub async fn new(prog : Program, canv: Canvas, canvas: CanvasReader) -> Runtime {
         //let exec = Execution::from_program(prog.clone(), canv);
         let global_vars = Arc::new(Mutex::new(HashMap::new()));
         let global_var_defs = Arc::new(Mutex::new(prog.global_vars));
@@ -92,7 +96,7 @@ impl Runtime {
         let lin_col = Arc::new(Mutex::new(String::from("#ffffff")));
         let lin_wid = Arc::new(Mutex::new(1));
 
-        let exec = Execution {
+        let mut exec = Execution {
             lines : prog.lines.clone(),
             scope : Scope { variables: HashMap::new(), outer_scope: None },
             global_vars: Arc::clone(&global_vars),
@@ -116,11 +120,27 @@ impl Runtime {
             None 
         };
 
+        let defs = global_var_defs.lock().unwrap();
+
+        let mut global_err = None;
+
+        for (name, (_, expr)) in defs.iter() {
+            let mut new_exec = exec.clone().create_subscope();
+            let val = new_exec.calculate_expression(expr.clone()).await;
+            match val {
+                Ok(value) => {
+                    exec.global_vars.lock().unwrap().insert(name.clone(), value)
+                },
+                Err(e) => {global_err = Some(e); break;}
+            };
+        }
+
         Runtime { 
             main_execution: exec, 
             key_execution: keyboard_exec,
             mouse_execution: mouse_exec,
-            canvas: canvas
+            canvas: canvas,
+            global_error: global_err
         }
     }
 }

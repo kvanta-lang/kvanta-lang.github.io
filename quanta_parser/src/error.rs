@@ -2,7 +2,7 @@ use std::{fmt};
 
 use crate::Rule;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 
 pub enum Error {
     ParseError {message: Box<str>},

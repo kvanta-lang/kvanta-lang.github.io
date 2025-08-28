@@ -147,16 +147,33 @@ impl Program {
                     if self.keywords.contains(&func.name) {
                         return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be the name of a function", func.name).into() });
                     }
-                    for (argname, _) in &func.args {
+                    for (argname, t) in &func.args {
                         if self.keywords.contains(argname) { 
                             return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be the name of a variable", argname).into() }); 
+                        }
+                    }
+                    if &func.name == "keyboard" {
+                        if func.args.len() != 1 {
+                            return Err(Error::TypeError { message: format!("Special function 'keyboard' has to have exactly 1 argument").into() });
+                        }
+                        if func.args.get(0).unwrap().clone().1.type_name != TypeName::Primitive(BaseType::Int) {
+                            return Err(Error::TypeError { message: format!("Special function 'keyboard' has to receive an integer, but got {}", func.args.get(0).unwrap().clone().1.to_string()).into() });
+                        }
+                    }
+                    if &func.name == "mouse" {
+                        if func.args.len() != 2 {
+                            return Err(Error::TypeError { message: format!("Special function 'mouse' has to have exactly 2 arguments").into() });
+                        }
+                        if func.args.get(0).unwrap().clone().1.type_name != TypeName::Primitive(BaseType::Int)
+                         || func.args.get(1).unwrap().clone().1.type_name != TypeName::Primitive(BaseType::Int) {
+                            return Err(Error::TypeError { message: format!("Special function 'mouse' has to receive two integers, but got {} and {}", func.args.get(0).unwrap().clone().1.to_string(), func.args.get(1).unwrap().clone().1.to_string()).into() });
                         }
                     }
                     self.function_defs.insert(func.name.clone(), (func.args.clone(), func.return_type.clone()));
                 }
                 for (name, (typ, expr)) in &forest.1 {
                     if self.keywords.contains(name) {
-                        
+                        return Err(Error::TypeError { message: format!("'{}' is a keyword, it cannot be the name of a variable", name).into() });
                     }
                     let expr_type = self.type_check_expr(&expr.clone())?;
                     if expr_type.type_name != typ.type_name {

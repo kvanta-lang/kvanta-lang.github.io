@@ -41,10 +41,12 @@ pub struct CompilationMessage {
 
 #[wasm_bindgen]
 impl CompilationMessage {
+    #[wasm_bindgen]
     pub fn get_runtime(&self) -> Runtime {
         self.runtime.clone().unwrap()
     }
 
+    #[wasm_bindgen]
     pub fn get_error_message(&self) -> String {
         self.error_message.clone()
     }
