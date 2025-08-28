@@ -3,7 +3,6 @@ use crossbeam_channel::{Receiver, Sender};
 
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
-
 pub struct Canvas {
     commands: Sender<String>,
 }

@@ -1,11 +1,16 @@
 const logEl  = document.getElementById('logs');
-const canvas = document.getElementById('canvas');
-const ctx    = canvas.getContext('2d', { alpha: false });
+const drawCanvas = document.getElementById('canvas');
+const drawCtx = drawCanvas.getContext('2d', { alpha: false });
+const bufferCanvas = document.createElement('canvas')
+bufferCanvas.width = 1000;
+bufferCanvas.height = 1000;
+const ctx    = bufferCanvas.getContext('2d', { alpha: false });
+let isAnimation = false;
 // FIXED SIZE: 1000x1000 logical pixels (scaled for HiDPI once)
 const CANVAS_W = 800, CANVAS_H = 800;
 const DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-canvas.width  = Math.floor(CANVAS_W * DPR);
-canvas.height = Math.floor(CANVAS_H * DPR);
+drawCanvas.width  = Math.floor(CANVAS_W * DPR);
+drawCanvas.height = Math.floor(CANVAS_H * DPR);
 ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
 export function log(text) {
@@ -14,11 +19,12 @@ export function log(text) {
 }
 
 
-
 export function clearCanvas(color = '#0a0f1f') {
   ctx.save(); ctx.setTransform(1,0,0,1,0,0);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
   ctx.restore();
+
+  isAnimation = false;
 
   ctx.save(); ctx.fillStyle = color;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -49,7 +55,7 @@ function drawLine(x1,y1,x2,y2,o){ ctx.beginPath(); ctx.moveTo(toPx(x1,'x'), toPx
 function drawPolygon(nums,o){ if(nums.length<4) return; ctx.beginPath(); ctx.moveTo(toPx(nums[0],'x'), toPx(nums[1],'y')); for(let i=2;i<nums.length;i+=2) ctx.lineTo(toPx(nums[i],'x'), toPx(nums[i+1],'y')); ctx.closePath(); if(o.fill) {ctx.fill()}; if(o.stroke||!o.fill) ctx.stroke(); }
 function drawArc(cx,cy,r,a0,a1,ccw,o){ ctx.beginPath(); ctx.arc(toPx(cx,'x'), toPx(cy,'y'), toPx(r,'x'), deg2rad(a0), deg2rad(a1), !!ccw); if(o.fill) ctx.fill(); if(o.stroke||!o.fill) ctx.stroke(); }
 
-export function drawScript(script){
+export function drawScript(script, should_draw_frame=false){
     console.log("Script " + script);
   //clearCanvas('#0a0f1f');
   ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
@@ -67,10 +73,18 @@ export function drawScript(script){
         case 'polygon': { const nums=[]; let i=1; for(;i<tok.length;i++){ if(tok[i].includes('=')) break; nums.push(Number(tok[i])); } const o=parseOptions(tok,i); applyStyle(o); drawPolygon(nums,o); break; }
         case 'arc': { const [_, cx, cy, r, a0, a1] = tok; const o=parseOptions(tok,6); applyStyle(o); drawArc(cx,cy,r,Number(a0),Number(a1),!!o.ccw,o); break; }
         case 'bg': case 'background': { const color = tok[1] || '#0a0f1f'; clearCanvas(color); break; }
+        case 'animate': {isAnimation = true;}
+        case 'clear': {clearCanvas(); }
         default: /* ignore unknown */ break;
       }
     } catch (e) { console.warn('Error:', line, e); }
   }
   ctx.restore();
+  console.log("Draw");
+  if (!isAnimation || should_draw_frame) {
+    console.log("Is not animation");
+    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    drawCtx.drawImage(bufferCanvas, 0, 0);
+  }
   console.log("DONE");
 }

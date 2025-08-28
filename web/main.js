@@ -9,7 +9,7 @@ import { oneDark } from "https://esm.sh/@codemirror/theme-one-dark@6";
 import { quanta } from "./quanta-support.js";
 
 // Canvas runtime (drawScript + utilities)
-import { drawScript, log } from "./canvas-runtime.js";
+import { drawScript, log, clearCanvas } from "./canvas-runtime.js";
 
 // WASM glue (wasm-pack output); adjust crate name/path
 import initWasm, { Compiler } from "../quanta-lang/pkg/quanta_lang.js"; 
@@ -62,6 +62,7 @@ function doRun() {
     try {
       runBtn.disabled = true;
       //log("Compiling…");
+      clearCanvas();
       console.log("Compiling");
       await initWasm();
       console.log("Init wasm done");
@@ -80,9 +81,12 @@ function doRun() {
         for (let i = 0; i < blocks.length; i++) {
           const block = blocks[i];
           let commands = block.get_commands();
-           drawScript(commands);
-           if (block.sleep_for > 0) {
-            await sleep(1000);
+          console.log("BLOCK " + commands);
+           drawScript(commands, block.should_draw_frame);
+           if (block.sleep_for >= 0) {
+            console.log("Sleep for " + block.sleep_for);
+            await sleep(block.sleep_for);
+            console.log("Sleep done " + block.sleep_for);
            } else {
             need_continue = false;
             break;

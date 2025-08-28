@@ -7,8 +7,15 @@ mod tests {
         let mut compiler = Compiler::new();
         let msg = compiler.compile(src);
         assert_eq!(msg.error_code, 0, "Unexpected compile error: {}", msg.get_error_message());
-        compiler.execute();
-        compiler.get_commands()
+        let mut exec = msg.get_runtime();
+        exec.execute();
+        exec.get_commands().iter().fold(vec![], 
+        |mut res, block| {
+            let mut coms = block.get_commands();
+            res.append(&mut coms);
+            res.push(format!("sleep {}", block.sleep_for).into());
+            res
+        })
     }
 
     #[test]
@@ -18,10 +25,7 @@ mod tests {
         let contents = std::fs::read_to_string(file_path)
             .expect("Should have been able to read the file");
         assert!(contents.len() > 0);
-        let mut compiler = Compiler::new();
-        let result = compiler.compile(&contents);
-        compiler.execute();
-        println!("{:?}\n=====================================", compiler.get_commands());
+        println!("{:?}\n=====================================", compile_ok(&contents));
     }
 
     #[test]

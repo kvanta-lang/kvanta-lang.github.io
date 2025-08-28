@@ -12,7 +12,8 @@ pub struct Runtime {
 #[derive(Clone)]
 pub struct CommandBlock{
     commands: Vec<String>,
-    pub sleep_for: i32
+    pub sleep_for: i32,
+    pub should_draw_frame: bool
 }
 
 #[wasm_bindgen]
@@ -24,7 +25,7 @@ impl CommandBlock {
 
 impl CommandBlock {
     fn new() -> CommandBlock {
-        CommandBlock { commands: vec![], sleep_for: 0 }
+        CommandBlock { commands: vec![], sleep_for: 0, should_draw_frame: false }
     }
 
     fn push(&mut self, command: String) -> CommandBlock {
@@ -54,10 +55,15 @@ impl Runtime {
                 block.sleep_for = time;
                 result.push(block);
                 block = CommandBlock::new();
+            } else if command.starts_with("frame") {
+                block.should_draw_frame = true;
+                result.push(block);
+                block = CommandBlock::new();
             } else {
                 block.push(command);
             }
         }
+        block.sleep_for = -1;
         result.push(block);
         return result;
     }

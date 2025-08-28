@@ -5,8 +5,7 @@ use quanta_parser::ast::BaseType;
 use crate::{program::Program, utils::canvas::Canvas};
 use js_sys::Math;
 
-use std::thread;
-use std::time::Duration;
+//use std::{thread, time::Duration};
 
 #[derive(Debug, Clone)]
 pub struct Scope {
@@ -294,6 +293,18 @@ impl Execution {
                 } else {
                     Err(Error::RuntimeError { message: "Sleep time can't be negative!".into() })
                 }
+            },
+            "animate" => {
+                self.canvas.add_command(format!("animate"));
+                Ok(None)
+            },
+            "frame" => {
+                self.canvas.add_command(format!("frame"));
+                Ok(None)
+            },
+            "clear" => {
+                self.canvas.add_command(format!("clear"));
+                Ok(None)
             }
             name => {
                 if self.functions.contains_key(name) {
