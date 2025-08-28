@@ -20,15 +20,10 @@ let runtime = undefined;
 let isRunning = false;
 
 // starter code
-const startCode = `animate();
-setLineColor(Color::White);
-for i in (0..200) {
-   clear();
-   line(0, 250, 1000, 250);
-   circle(i, 200, 50);
-   frame();
-   sleep(10);
+const startCode = `for i in (0..10000) {
+    circle(320, 240, 100);
 }
+rectangle(0, 0, 100, 100);
 
 `;
 
@@ -59,6 +54,11 @@ function doStop() {
   })();
 }
 
+async function startExecution() {
+  let res = runtime.execute();
+  console.log("EXECUTION ENDED: " + res);
+}
+
 function doRun() {
   (async () => {
     try {
@@ -78,7 +78,7 @@ function doRun() {
       console.log("Compiling done");
       setRunningUI();
       runtime = compilation_result.get_runtime();
-      runtime.execute();
+      startExecution();
       let need_continue = true;
       while(need_continue) {
         if (checkIsCancelled()) { return; }
@@ -91,12 +91,12 @@ function doRun() {
            if (block.sleep_for >= 0) {
             await sleep(block.sleep_for);
            } else {
+            console.log("finish!");
             need_continue = false;
             break;
            }
         }
-      }             // render to Canvas2D
-      //log("OK12\n" + script);
+      }
     } catch (e) {
       console.error(e);
       alert("Error: " + (e?.message ?? String(e)));

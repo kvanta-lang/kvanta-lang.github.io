@@ -1,5 +1,7 @@
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::{spawn_local};
 use quanta_parser::error::Error;
+
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -37,12 +39,16 @@ impl CommandBlock {
 #[wasm_bindgen]
 impl Runtime {
     pub fn execute(&self) {
-        match self.execution.clone().execute() {
+        let new_exec = self.execution.clone();
+        spawn_local(async move {
+            match new_exec.clone().execute().await {
             Ok(_) => {},
             Err(err) => {
                 panic!("Got error: {}", err);
             }
         }
+        })
+        
     }
 
     pub fn get_commands(&mut self) -> Vec<CommandBlock> {
@@ -59,11 +65,14 @@ impl Runtime {
                 block.should_draw_frame = true;
                 result.push(block);
                 block = CommandBlock::new();
+            } else if command.starts_with("end") {
+                block.sleep_for = -1;
+                result.push(block);
+                return result;
             } else {
                 block.push(command);
             }
         }
-        block.sleep_for = -1;
         result.push(block);
         return result;
     }

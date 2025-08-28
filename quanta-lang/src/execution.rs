@@ -1,9 +1,12 @@
 use std::{collections::HashMap};
 
+use gloo_timers::future::TimeoutFuture;
 use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, BaseValue, Expression, Operator, Type, UnaryOperator, VariableCall}, error::Error};
 use quanta_parser::ast::BaseType;
 use crate::{program::Program, utils::canvas::Canvas};
 use js_sys::Math;
+use std::pin::Pin;
+use std::future::Future;
 
 //use std::{thread, time::Duration};
 
@@ -144,7 +147,7 @@ impl Execution {
         self.global_vars.get_mut(name)
     }
 
-    fn get_variable(&mut self, var: &VariableCall) -> Result<&mut BaseValue, Error> {
+    async fn get_variable(&mut self, var: &VariableCall) -> Result<&mut BaseValue, Error> {
         match var {
             VariableCall::Name(name) => self.get_mut(name).ok_or(Error::RuntimeError { message: format!("Unknown variable: {}", name).into() }),
             VariableCall::ArrayCall(name, indices) => {
@@ -156,7 +159,7 @@ impl Execution {
                 }
                 let mut integer_indices: Vec<i32> = vec![];
                 for index in indices {
-                    match self.calculate_expression(index.clone().to_expr()) {
+                    match self.calculate_expression(index.clone().to_expr()).await {
                         Ok(BaseValue::Int(i)) => {
                             if i < 0 {
                                 return Err(Error::RuntimeError { message: format!("Negative index for array {}: {}", name, i).into() });
@@ -187,10 +190,10 @@ impl Execution {
         }
     }
 
-    fn execute_function(&mut self, function_name: &str, args: Vec<Expression>) -> Result<Option<BaseValue>, Error>{
+    async fn execute_function(&mut self, function_name: &str, args: Vec<Expression>) -> Result<Option<BaseValue>, Error>{
         let mut vals : Vec<BaseValue> = vec![];
         for arg in args {
-            let val = self.calculate_expression(arg)?;
+            let val = self.calculate_expression(arg).await?;
             vals.push(val);
         }
         match function_name {
@@ -316,7 +319,7 @@ impl Execution {
                     for (i, param) in params.iter().enumerate() {
                         new_exec.scope.variables.insert(param.0.clone(), vals[i].clone());
                     }
-                    let ret_val_wrap = new_exec.execute_commands(body.nodes.clone())?;
+                    let ret_val_wrap = new_exec.execute_commands(body.nodes.clone()).await?;
                     self.absorb_subfunction(new_exec);
 
                     if let Some(return_value) = ret_val_wrap {
@@ -329,8 +332,8 @@ impl Execution {
         }
     }
 
-    fn execute_init(&mut self, var: String, expr: Expression) -> Option<Error>{
-        let val = self.calculate_expression(expr);
+    async fn execute_init(&mut self, var: String, expr: Expression) -> Option<Error>{
+        let val = self.calculate_expression(expr).await;
         if let Err(err) = val {
             return Some(err);
         }
@@ -344,13 +347,13 @@ impl Execution {
         Some(Error::RuntimeError { message: "Couldn't assign new value".into() })
     }
 
-    fn execute_set(&mut self, var: &VariableCall, expr: Expression) -> Option<Error> {
-        let val = self.calculate_expression(expr);
+    async fn execute_set(&mut self, var: &VariableCall, expr: Expression) -> Option<Error> {
+        let val = self.calculate_expression(expr).await;
         if let Err(err) = val {
             return Some(err);
         }
         if let Ok(value) = val {
-            match self.get_variable(var) {
+            match self.get_variable(var).await {
                 Ok(variable) => {
                     *variable = value;
                     return None;
@@ -361,21 +364,23 @@ impl Execution {
         Some(Error::RuntimeError { message: "Couldn't set new value".into() })
     }
 
-    pub fn execute(&mut self) -> Result<(), Error> {
+    pub async fn execute(&mut self) -> Result<(), Error> {
         match self.lines {
             AstProgram::Block(ref block) => {
-                self.execute_commands(block.nodes.clone())?;
+                self.execute_commands(block.nodes.clone()).await?;
+                self.canvas.add_command("end".into());
             },
             AstProgram::Forest(ref funcs) => {
                 for (name, (_, expr)) in &self.global_var_definitions {
                     let mut new_exec = self.create_subscope();
-                    let val = new_exec.calculate_expression(expr.clone())?;
+                    let val = new_exec.calculate_expression(expr.clone()).await?;
                     self.global_vars.insert(name.clone(), val);
                 }
                 for func in &funcs.0 {
                     if func.name == "main" {
                         let mut new_exec = self.create_subscope();
-                        new_exec.execute_commands(func.block.nodes.clone())?;
+                        new_exec.execute_commands(func.block.nodes.clone()).await?;
+                        self.canvas.add_command("end".into());
                     }
                 }
                 return Err(Error::RuntimeError { message: "No main function found".into() });
@@ -384,184 +389,194 @@ impl Execution {
         Ok(())
     }
 
-    pub fn execute_commands(&mut self, nodes : Vec<AstNode>) -> Result<Option<BaseValue>, Error> {
-        for line in nodes {
-            match line {
-                AstNode::Command { name, args } => {
-                    self.execute_function(&name, args)?;
-                },
-                AstNode::Init { typ : _, val, expr } => {
-                    if let Some(err) = self.execute_init(val, expr) {
-                        return Err(err);
-                    }
-                }
-                AstNode::SetVal { val, expr } => {
-                    if let Some(err) = self.execute_set(&val, expr) {
-                        return Err(err);
-                    }
-                }
-                
-                AstNode::If { clause, block, else_block } => {
-                    if let BaseValue::Bool(val) = self.calculate_expression(clause)? {
-                        let mut new_exec = self.create_subscope();
-                        if val {
-                            if let Some(return_value) = new_exec.execute_commands(block.nodes)? {
-                                return Ok(Some(return_value));
-                            }
-                        } else if let Some(else_block) = else_block {
-                            if let Some(return_value) = new_exec.execute_commands(else_block.nodes)? {
-                                return Ok(Some(return_value));
-                            }
-                        }
-                        self.absorb_subscope(new_exec);
-                    } else {
-                        return Err(Error::RuntimeError { message: "If clause must be a boolean expression".into() });
-                    }
-                },
-                AstNode::While { clause, block } => {
-                    loop {
-                        let val = self.calculate_expression(clause.clone());
-                        match val {
-                            Ok(BaseValue::Bool(while_clause)) => {
-                                if while_clause {
-                                    let mut new_exec = self.create_subscope();
-                                    let result = new_exec.execute_commands(block.nodes.clone())?;
-                                    self.absorb_subscope(new_exec);
-                                    if let Some(return_value) = result {
-                                        return Ok(Some(return_value));
-                                    }
-                                } else {
-                                    break;
-                                }
-                            }
-                            Err(err) => {
-                                return Err(err);
-                            }
-                            Ok(v) => return Err(Error::RuntimeError { message: format!("Expected a boolean value, but got {:?}", v).into() })
+    pub fn execute_commands<'a>(&'a mut self, nodes : Vec<AstNode>) -> Pin<Box<dyn Future<Output = Result<Option<BaseValue>, Error>> + 'a>> {
+        Box::pin(async move {
+            TimeoutFuture::new(1).await;
+            for line in nodes {
+                match line {
+                    AstNode::Command { name, args } => {
+                        self.execute_function(&name, args).await?;
+                    },
+                    AstNode::Init { typ : _, val, expr } => {
+                        if let Some(err) = self.execute_init(val, expr).await {
+                            return Err(err);
                         }
                     }
-                },
-                AstNode::For { val, from, to, block } => {
-                    if let BaseValue::Int(f_) = from {
-                        if let BaseValue::Int(t_) = to {
-                            let (f,t) = {
-                                if f_ <= t_ {
-                                    (f_, t_)
-                                } else {
-                                    (t_, f_)
-                                }
-                            };
-                            for cycle in f..=t {
-                                if let Some(return_value) = self.execute_for(val.clone(), cycle, block.clone()) ?{
+                    AstNode::SetVal { val, expr } => {
+                        if let Some(err) = self.execute_set(&val, expr).await {
+                            return Err(err);
+                        }
+                    }
+                    
+                    AstNode::If { clause, block, else_block } => {
+                        if let BaseValue::Bool(val) = self.calculate_expression(clause).await? {
+                            let mut new_exec = self.create_subscope();
+                            if val {
+                                if let Some(return_value) = new_exec.execute_commands(block.nodes).await? {
                                     return Ok(Some(return_value));
                                 }
-                            }                    
-                        }
-                    }
-                },
-                AstNode::Return { expr } => {
-                    let val = self.calculate_expression(expr)?;
-                    return Ok(Some(val.clone()))
-                },
-            }
-        }
-        Ok(None)
-    }
-
-    fn execute_for(&mut self, val: String, cycle : i32, block : AstBlock) -> Result<Option<BaseValue>, Error> {
-        let mut new_exec = self.create_subscope();
-        new_exec.execute_init(val, Expression::Value(BaseValue::Int(cycle)));
-        let result = new_exec.execute_commands(block.nodes.clone());
-        self.absorb_subscope(new_exec);
-        result        
-    }
-
-    fn calculate_expression(&mut self, expr: Expression) -> Result<BaseValue, Error> {
-        match expr {
-            Expression::Value(base_value) => {
-                match base_value {
-                    BaseValue::Id(var) => {
-                        self.get_variable(&var).cloned()
-                    },
-                    BaseValue::FunctionCall(name, exprs, _ ) => {
-                        let mut vals = vec![];
-                        for expr in exprs {
-                            let val = self.calculate_expression(expr)?;
-                            vals.push(val);
-                        }
-                        if let Some((params, _, body)) = self.functions.get(&name) {
-                            let mut new_exec = self.create_subfunction();
-                            for (i, (name, _)) in params.iter().enumerate() {
-                                if i < vals.len() {
-                                    new_exec.scope.variables.insert(name.clone(), vals[i].clone());
-                                } else {
-                                    return Err(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
+                            } else if let Some(else_block) = else_block {
+                                if let Some(return_value) = new_exec.execute_commands(else_block.nodes).await? {
+                                    return Ok(Some(return_value));
                                 }
                             }
-                            let result = new_exec.execute_commands(body.nodes.clone())?;
-                            self.absorb_subfunction(new_exec);
-                            if let Some(return_value) = result {
-                                return Ok(return_value);
-                            }
-                            return Err(Error::RuntimeError { message: format!("Function {} didn't return a value", name).into() });
-                        }
-                        Err(Error::RuntimeError { message: format!("Unknown function: {}", name).into() })
-                    }
-                    x => Ok(x)
-                }
-            },
-            Expression::Unary(op, inner) => {
-                let inner_val = self.calculate_expression(*inner)?;
-                match op {
-                    UnaryOperator::UnaryMinus => {
-                        match inner_val {
-                            BaseValue::Int(num) => Ok(BaseValue::Int((-1) * num)),
-                            BaseValue::Float(num) => Ok(BaseValue::Float((-1.0) * num)),
-                            v => Err(Error::RuntimeError { message: format!("Cannot apply unary minus to: {:?}", v).into() })
+                            self.absorb_subscope(new_exec);
+                        } else {
+                            return Err(Error::RuntimeError { message: "If clause must be a boolean expression".into() });
                         }
                     },
-                    UnaryOperator::NOT => {
-                        match inner_val {
-                            BaseValue::Bool(val) => Ok(BaseValue::Bool(!val)),
-                            _ => Err(Error::RuntimeError { message: "Unary not only allowed on bool: {}".into() })
+                    AstNode::While { clause, block } => {
+                        loop {
+                            let val = self.calculate_expression(clause.clone()).await;
+                            match val {
+                                Ok(BaseValue::Bool(while_clause)) => {
+                                    if while_clause {
+                                        let mut new_exec = self.create_subscope();
+                                        let result = new_exec.execute_commands(block.nodes.clone()).await?;
+                                        self.absorb_subscope(new_exec);
+                                        if let Some(return_value) = result {
+                                            return Ok(Some(return_value));
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                Err(err) => {
+                                    return Err(err);
+                                }
+                                Ok(v) => return Err(Error::RuntimeError { message: format!("Expected a boolean value, but got {:?}", v).into() })
+                            }
+                        }
+                    },
+                    AstNode::For { val, from, to, block } => {
+                        if let BaseValue::Int(f_) = from {
+                            if let BaseValue::Int(t_) = to {
+                                let (f,t) = {
+                                    if f_ <= t_ {
+                                        (f_, t_)
+                                    } else {
+                                        (t_, f_)
+                                    }
+                                };
+                                for cycle in f..=t {
+                                    if let Some(return_value) = self.execute_for(val.clone(), cycle, block.clone()).await?{
+                                        return Ok(Some(return_value));
+                                    }
+                                }                    
+                            }
+                        }
+                    },
+                    AstNode::Return { expr } => {
+                        let val = self.calculate_expression(expr).await?;
+                        return Ok(Some(val.clone()))
+                    },
+                }
+            }
+            Ok(None)
+        })
+    }
+
+    async fn execute_for(&mut self, val: String, cycle : i32, block : AstBlock) -> Result<Option<BaseValue>, Error> {
+        let mut new_exec = self.create_subscope();
+        new_exec.execute_init(val, Expression::Value(BaseValue::Int(cycle))).await;
+        let result = new_exec.execute_commands(block.nodes.clone()).await;
+        self.absorb_subscope(new_exec);
+        result
+    }
+
+
+
+    fn calculate_expression<'a>(
+        &'a mut self,
+        expr: Expression,
+    ) -> Pin<Box<dyn Future<Output = Result<BaseValue, Error>> + 'a>> {
+        Box::pin(async move {
+            match expr {
+                Expression::Value(base_value) => {
+                    match base_value {
+                        BaseValue::Id(var) => {
+                            self.get_variable(&var).await.cloned()
+                        },
+                        BaseValue::FunctionCall(name, exprs, _ ) => {
+                            let mut vals = vec![];
+                            for expr in exprs {
+                                let val = self.calculate_expression(expr).await?;
+                                vals.push(val);
+                            }
+                            if let Some((params, _, body)) = self.functions.get(&name) {
+                                let mut new_exec = self.create_subfunction();
+                                for (i, (name, _)) in params.iter().enumerate() {
+                                    if i < vals.len() {
+                                        new_exec.scope.variables.insert(name.clone(), vals[i].clone());
+                                    } else {
+                                        return Err(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
+                                    }
+                                }
+                                let result = new_exec.execute_commands(body.nodes.clone()).await?;
+                                self.absorb_subfunction(new_exec);
+                                if let Some(return_value) = result {
+                                    return Ok(return_value);
+                                }
+                                return Err(Error::RuntimeError { message: format!("Function {} didn't return a value", name).into() });
+                            }
+                            Err(Error::RuntimeError { message: format!("Unknown function: {}", name).into() })
+                        }
+                        x => Ok(x)
+                    }
+                },
+                Expression::Unary(op, inner) => {
+                    let inner_val = self.calculate_expression(*inner).await?;
+                    match op {
+                        UnaryOperator::UnaryMinus => {
+                            match inner_val {
+                                BaseValue::Int(num) => Ok(BaseValue::Int((-1) * num)),
+                                BaseValue::Float(num) => Ok(BaseValue::Float((-1.0) * num)),
+                                v => Err(Error::RuntimeError { message: format!("Cannot apply unary minus to: {:?}", v).into() })
+                            }
+                        },
+                        UnaryOperator::NOT => {
+                            match inner_val {
+                                BaseValue::Bool(val) => Ok(BaseValue::Bool(!val)),
+                                _ => Err(Error::RuntimeError { message: "Unary not only allowed on bool: {}".into() })
+                            }
+                        }
+                        UnaryOperator::Parentheses => Ok(inner_val)
+                    }
+                },
+                Expression::Binary(op, lhs, rhs) => {
+                    let left_val = self.calculate_expression(*lhs).await?;
+                    let right_val = self.calculate_expression(*rhs).await?;
+
+                    if let BaseValue::Int(x) = left_val {
+                        if let BaseValue::Int(y) = right_val {
+                            return compare_ints(x, y, op);
+                        }
+                        if let BaseValue::Float(y) = right_val {
+                            let t = x as f32;
+                            return compare_floats(t, y, op);
                         }
                     }
-                    UnaryOperator::Parentheses => Ok(inner_val)
-                }
-            },
-            Expression::Binary(op, lhs, rhs) => {
-                let left_val = self.calculate_expression(*lhs)?;
-                let right_val = self.calculate_expression(*rhs)?;
 
-                if let BaseValue::Int(x) = left_val {
-                    if let BaseValue::Int(y) = right_val {
-                        return compare_ints(x, y, op);
+                    if let BaseValue::Float(y) = left_val {
+                        if let BaseValue::Int(x) = right_val {
+                            let t = x as f32;
+                            return compare_floats(y, t, op);
+                        }
+                        if let BaseValue::Float(x) = right_val {
+                            return compare_floats(y, x, op);
+                        }
                     }
-                    if let BaseValue::Float(y) = right_val {
-                        let t = x as f32;
-                        return compare_floats(t, y, op);
-                    }
-                }
 
-                if let BaseValue::Float(y) = left_val {
-                    if let BaseValue::Int(x) = right_val {
-                        let t = x as f32;
-                        return compare_floats(y, t, op);
+                    if let BaseValue::Bool(a) = left_val {
+                        if let BaseValue::Bool(b) = right_val {
+                            return compare_bools(a, b, op);
+                        }
                     }
-                    if let BaseValue::Float(x) = right_val {
-                        return compare_floats(y, x, op);
-                    }
-                }
 
-                if let BaseValue::Bool(a) = left_val {
-                    if let BaseValue::Bool(b) = right_val {
-                        return compare_bools(a, b, op);
-                    }
-                }
-
-                Err(Error::RuntimeError { message: "Unsolvable expression!".into() })
-            },
-        }
+                    Err(Error::RuntimeError { message: "Unsolvable expression!".into() })
+                },
+            }
+        })
     }
 }
 
