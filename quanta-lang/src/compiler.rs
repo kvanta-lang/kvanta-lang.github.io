@@ -1,6 +1,5 @@
 
 use quanta_parser::{parse_ast};
-use crate::execution::Execution;
 use crate::program::create_program;
 use crate::utils::canvas::construct_canvas;
 use crate::utils::message::CompilationMessage;

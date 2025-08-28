@@ -1,10 +1,10 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{spawn_local};
-use quanta_parser::{ast::{BaseValue, Expression, Type}, error::Error};
+use quanta_parser::error::Error;
 
 use crate::{execution::{Execution, Scope}, program::Program, utils::{canvas::{Canvas, CanvasReader}, message::CommandBlock}};
 
-use std::{collections::HashMap, fmt, sync::{Arc, Mutex}};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -96,7 +96,7 @@ impl Runtime {
         let lin_col = Arc::new(Mutex::new(String::from("#ffffff")));
         let lin_wid = Arc::new(Mutex::new(1));
 
-        let mut exec = Execution {
+        let exec = Execution {
             lines : prog.lines.clone(),
             scope : Scope { variables: HashMap::new(), outer_scope: None },
             global_vars: Arc::clone(&global_vars),

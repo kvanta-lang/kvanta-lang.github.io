@@ -1,7 +1,5 @@
 use wasm_bindgen::prelude::*;
 use crossbeam_channel::{Receiver, Sender};
-use wasm_bindgen_futures::spawn_local;
-use gloo_timers::future::TimeoutFuture;
 
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
@@ -27,7 +25,6 @@ impl Canvas {
 
 impl CanvasReader {
     pub fn get_commands(&mut self) -> Vec<String> {
-        //vec!["circle 320 240 100".into()]
         self.commands.try_iter().collect()
     }
 }
