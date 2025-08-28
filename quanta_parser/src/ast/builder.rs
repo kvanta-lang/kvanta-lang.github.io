@@ -122,7 +122,7 @@ fn build_ast_from_block(&self, statements: Pairs<Rule>) -> Result<AstBlock, Erro
             Rule::statement => {
                 block.nodes.push(self.build_ast_from_statement(pair.into_inner())?);
             }
-            _ => unreachable!("Unexpected code 6")
+            _ => return Err(Error::ParseError { message: "Expected a statement!".into() })
         }
     }
     Ok(block)
@@ -141,7 +141,7 @@ fn build_ast_from_statement(&self, statement: Pairs<Rule>) -> Result<AstNode, Er
             let expr = self.build_ast_from_expression(state.into_inner().into_iter().next().unwrap())?;
             Ok(AstNode::Return { expr: expr })
         }
-        _ => unreachable!("Unexpected code 7")
+        _ => return Err(Error::ParseError { message: "Expected a statement!".into() })
     }
 }
 
@@ -298,9 +298,7 @@ fn build_ast_from_simple_expression_inner(&self, expression: Pair<Rule>) -> Resu
 
 fn build_ast_from_expression(&self, expression: Pair<Rule>) -> Result<Expression, Error> {
     let expr = self.build_ast_from_expression_inner(expression)?;
-    println!("Expression before correction: {:?}", expr);
     let (res, _) = self.improve_expr(expr);
-    println!("Expression after correction: {:?}", res);
     Ok(res)
 }
 
@@ -425,7 +423,7 @@ fn build_ast_from_value(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
                 Err(Error::TypeError { message: format!("Unknown function {}", name).into() })
             }
         }
-        _ => unreachable!("Unexpected code 8")
+        _ => return Err(Error::ParseError { message: "Expected a value!".into() })
     }
 }
 
@@ -433,7 +431,7 @@ fn build_ast_from_simple_value(&self, val: Pair<Rule>) -> Result<SimpleValue, Er
     match val.as_rule() {
         Rule::integer => Ok(SimpleValue::Int(val.as_str().parse::<i32>().unwrap())),
         Rule::noun   => Ok(SimpleValue::Id(self.build_ast_from_noun(val)?)),
-        _ => unreachable!("Unexpected code 9")
+        _ => return Err(Error::ParseError { message: "Expected a simple value!".into() })
     }
 }
 

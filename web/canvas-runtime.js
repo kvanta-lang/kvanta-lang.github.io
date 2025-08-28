@@ -51,7 +51,7 @@ function drawArc(cx,cy,r,a0,a1,ccw,o){ ctx.beginPath(); ctx.arc(toPx(cx,'x'), to
 
 export function drawScript(script){
     console.log("Script " + script);
-  clearCanvas('#0a0f1f');
+  //clearCanvas('#0a0f1f');
   ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
   const lines = String(script||'').split(/,/);
   for (const raw of lines) {

@@ -97,8 +97,11 @@ pub fn create_program(ast: AstProgram) -> Program {
             (String::from("angle_from"), int_type()),
             (String::from("angle_to"), int_type())
         ], None)),
+        (String::from("sleep"), (vec![
+            (String::from("sleep_time"), int_type())
+        ], None)),
     ]), keywords: HashSet::from(["circle", "line", "rectangle", 
-                    "setLineColor", "setFigureColor", "setLineWidth", "polygon", "arc",
+                    "setLineColor", "setFigureColor", "setLineWidth", "polygon", "arc", "sleep",
                     "for", "while", "global", "func", "if", "else",
                     "int", "bool", "color", "float", "array", "Color", "true", "false"
     ].map(|x| String::from(x)))}

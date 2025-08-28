@@ -5,6 +5,9 @@ use quanta_parser::ast::BaseType;
 use crate::{program::Program, utils::canvas::Canvas};
 use js_sys::Math;
 
+use std::thread;
+use std::time::Duration;
+
 #[derive(Debug, Clone)]
 pub struct Scope {
     pub variables: HashMap<String, BaseValue>,
@@ -281,6 +284,17 @@ impl Execution {
                     Err(Error::RuntimeError { message: "Line width can't be negative!".into() })
                 }
             },
+            "sleep" => {
+                let sleep_time = expect_arg!("sleep", vals, 0, Int(time) => *time);
+                if sleep_time >= 0 {
+                    //thread::sleep(Duration::from_millis(1000));
+                    self.canvas.add_command(format!("sleep {}", sleep_time));
+
+                    Ok(None)
+                } else {
+                    Err(Error::RuntimeError { message: "Sleep time can't be negative!".into() })
+                }
+            }
             name => {
                 if self.functions.contains_key(name) {
                     let (params, _, body) = self.functions.get(name).unwrap();
@@ -413,7 +427,7 @@ impl Execution {
                             Err(err) => {
                                 return Err(err);
                             }
-                            _ => unreachable!("Unexpected code 2")
+                            Ok(v) => return Err(Error::RuntimeError { message: format!("Expected a boolean value, but got {:?}", v).into() })
                         }
                     }
                 },
@@ -493,9 +507,7 @@ impl Execution {
                         match inner_val {
                             BaseValue::Int(num) => Ok(BaseValue::Int((-1) * num)),
                             BaseValue::Float(num) => Ok(BaseValue::Float((-1.0) * num)),
-                            BaseValue::Bool(_) => Err(Error::RuntimeError { message: "Minus bool: {}".into() }),
-                            BaseValue::Color(_, _, _) => Err(Error::RuntimeError { message: "Minus color: {}".into() }),
-                            _ => unreachable!("Unexpected code 3")
+                            v => Err(Error::RuntimeError { message: format!("Cannot apply unary minus to: {:?}", v).into() })
                         }
                     },
                     UnaryOperator::NOT => {
@@ -554,14 +566,12 @@ fn compare_ints(x: i32, y : i32, op: Operator) -> Result<BaseValue, Error> {
         Operator::GQ => return Ok(BaseValue::Bool(x >= y)),
         Operator::LQ => return Ok(BaseValue::Bool(x <= y)),
         
-        Operator::AND => unreachable!("Unexpected code 4"),
-        Operator::OR => unreachable!("Unexpected code 5"),
-        
         Operator::Plus => Ok(BaseValue::Int(x + y)),
         Operator::Minus => Ok(BaseValue::Int(x - y)),
         Operator::Mult => Ok(BaseValue::Int(x * y)),
         Operator::Div => Ok(BaseValue::Int(x / y)),
         Operator::Mod => Ok(BaseValue::Int(x % y)),
+        v => return Err(Error::RuntimeError { message: format!("Cannot apply operator {:?} to values of type int!",v).into()})
     }
 }
 
@@ -575,35 +585,27 @@ fn compare_floats(x: f32, y : f32, op: Operator) -> Result<BaseValue, Error> {
         Operator::GQ => Ok(BaseValue::Bool(x >= y)),
         Operator::LQ => Ok(BaseValue::Bool(x <= y)),
         
-        Operator::AND => unreachable!("Unexpected code 10"),
-        Operator::OR => unreachable!("Unexpected code 11"),
-        
         Operator::Plus => Ok(BaseValue::Float(x + y)),
         Operator::Minus => Ok(BaseValue::Float(x - y)),
         Operator::Mult => Ok(BaseValue::Float(x * y)),
         Operator::Div => Ok(BaseValue::Float(x / y)),
         Operator::Mod => Ok(BaseValue::Float(x % y)),
+
+        v => return Err(Error::RuntimeError { message: format!("Cannot apply operator {:?} to values of type float!",v).into()})
+
     }
 }
 
 fn compare_bools(a: bool, b : bool, op: Operator) -> Result<BaseValue, Error> {
     match op {
 
-        Operator::EQ => unreachable!("Unexpected code 12"),
-        Operator::NQ => unreachable!("Unexpected code 13"),
-        Operator::GT => unreachable!("Unexpected code 14"),
-        Operator::LT => unreachable!("Unexpected code 15"),
-        Operator::GQ => unreachable!("Unexpected code 16"),
-        Operator::LQ => unreachable!("Unexpected code 17"),
+        Operator::EQ => Ok(BaseValue::Bool(a == b)),
+        Operator::NQ => Ok(BaseValue::Bool(a != b)),
         
         Operator::AND => Ok(BaseValue::Bool(a && b)),
         Operator::OR => Ok(BaseValue::Bool(a || b)),
-        
-        Operator::Plus => unreachable!("Unexpected code 18"),
-        Operator::Minus => unreachable!("Unexpected code 19"),
-        Operator::Mult => unreachable!("Unexpected code 20"),
-        Operator::Div => unreachable!("Unexpected code 21"),
-        Operator::Mod => unreachable!("Unexpected code 22"),
+
+        o => Err(Error::RuntimeError { message: format!("Cannot apply operator '{:?}' to values of type bool!", o).into() })
     }
 }
 

@@ -53,6 +53,10 @@ const editor = new EditorView({
   parent: document.getElementById("editor")
 });
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function doRun() {
   (async () => {
     try {
@@ -65,12 +69,26 @@ function doRun() {
       let compiler = Compiler.new();
       const compilation_result = compiler.compile_code(src);   // Rust returns drawing commands (string)
       if (compilation_result.error_code != 0) {
-        alert(compilation_result.error_message);
+        alert(compilation_result.get_error_message());
       }
       console.log("Compiling done");
-      compiler.execute();
-      const script = compiler.get_commands();
-      drawScript(script);              // render to Canvas2D
+      let runtime = compilation_result.get_runtime();
+      runtime.execute();
+      let need_continue = true;
+      while(need_continue) {
+        let blocks = runtime.get_commands();
+        for (let i = 0; i < blocks.length; i++) {
+          const block = blocks[i];
+          let commands = block.get_commands();
+           drawScript(commands);
+           if (block.sleep_for > 0) {
+            await sleep(1000);
+           } else {
+            need_continue = false;
+            break;
+           }
+        }
+      }             // render to Canvas2D
       //log("OK12\n" + script);
     } catch (e) {
       console.error(e);

@@ -8,6 +8,7 @@ pub struct Canvas {
     commands: Sender<String>,
 }
 
+#[derive(Clone)]
 pub struct CanvasReader {
     commands: Receiver<String>
 }
