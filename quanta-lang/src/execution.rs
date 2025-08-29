@@ -13,7 +13,7 @@ use std::future::Future;
 #[derive(Debug, Clone)]
 pub struct Scope {
     pub variables: HashMap<String, BaseValue>,
-    pub outer_scope: Option<Box<Scope>>,
+    pub outer_scope: Option<Arc<Mutex<Scope>>>,
 }
 
 impl Scope {
@@ -23,7 +23,7 @@ impl Scope {
             return true;
         }
         if let Some(outer) = self.outer_scope.as_ref() {
-            return outer.contains_key(name);
+            return outer.lock().unwrap().contains_key(name);
         }
         false
     }
@@ -34,7 +34,7 @@ impl Scope {
             return true;
         }
         if let Some(outer) = &mut self.outer_scope {
-            return outer.set(name, val);
+            return outer.lock().unwrap().set(name, val);
         }
         return false;
     }
@@ -44,7 +44,7 @@ impl Scope {
             return Some(var.clone());
         }
         if let Some(outer) = &self.outer_scope {
-            return outer.get(name);
+            return outer.lock().unwrap().get(name);
         }
         None
     }
@@ -58,7 +58,7 @@ impl Scope {
 #[derive(Debug, Clone)]
 pub struct Execution {
     pub lines: AstProgram, 
-    pub scope : Scope,
+    pub scope : Arc<Mutex<Scope>>,
     pub global_vars : Arc<Mutex<HashMap<String, BaseValue>>>,
     pub functions : HashMap<String, (Vec<(String, Type)>, Option<Type>, AstBlock)>,
     pub canvas    : Canvas,
@@ -111,16 +111,10 @@ fn update_array(name: String, array: &mut BaseValue, mut integer_indices: Vec<i3
 
 impl Execution {
 
-    fn absorb_subscope(&mut self, other: Execution) 
-    {
-        self.scope = *other.clone().scope.outer_scope.unwrap();
-        self.absorb_subfunction(other);
-    }
-
     pub fn create_subscope(&self) -> Execution {
         Execution {
             lines: self.lines.clone(),
-            scope: Scope { variables: HashMap::new(), outer_scope: Some(Box::new(self.scope.clone())) },
+            scope: Arc::new(Mutex::new(Scope { variables: HashMap::new(), outer_scope: Some(Arc::clone(&self.scope)) })),
             canvas: self.canvas.clone(),
             global_vars: self.global_vars.clone(),
             functions: self.functions.clone(),
@@ -131,28 +125,20 @@ impl Execution {
     }
 
     fn create_subfunction(&self) -> Execution {
-        let mut e = self.create_subscope();
-        e.scope.clear();
+        let e = self.create_subscope();
+        e.scope.lock().unwrap().clear();
         e
     }
 
-    fn absorb_subfunction(&mut self, other: Execution) 
-    {
-        self.global_vars = other.global_vars;
-        self.figure_color = other.figure_color;
-        self.line_color = other.line_color;
-        self.line_width = other.line_width;
-    }
-
     pub fn contains_key(&self, name: &str) -> bool {
-        if self.scope.contains_key(name) {
+        if self.scope.lock().unwrap().contains_key(name) {
             return true;
         }
         self.global_vars.lock().unwrap().contains_key(name)
     }
 
     fn set(&mut self, name: String, val: BaseValue) -> bool {
-        if self.scope.set(name.clone(), val.clone()) {
+        if self.scope.lock().unwrap().set(name.clone(), val.clone()) {
             return true;
         }
         let mut globs = self.global_vars.lock().unwrap();
@@ -164,7 +150,7 @@ impl Execution {
     }
 
     pub fn get(&mut self, name: &str) -> Option<BaseValue> {
-        if let Some(var) = self.scope.get(name) {
+        if let Some(var) = self.scope.lock().unwrap().get(name) {
             return Some(var.clone());
         }
         self.global_vars.lock().unwrap().get(name).map(|x| x.clone())
@@ -384,10 +370,9 @@ impl Execution {
                     }
                     let mut new_exec = self.create_subfunction();
                     for (i, param) in params.iter().enumerate() {
-                        new_exec.scope.variables.insert(param.0.clone(), vals[i].clone());
+                        new_exec.scope.lock().unwrap().variables.insert(param.0.clone(), vals[i].clone());
                     }
                     let ret_val_wrap = new_exec.execute_commands(body.nodes.clone()).await?;
-                    self.absorb_subfunction(new_exec);
 
                     if let Some(return_value) = ret_val_wrap {
                         return Ok(Some(return_value));
@@ -405,7 +390,7 @@ impl Execution {
         if let Some(_) = self.get(&var) {
             return Err(Error::RuntimeError { message: format!("Variable {} is already defined!", &var).into() });
         }
-        self.scope.variables.insert(var, value);
+        self.scope.lock().unwrap().variables.insert(var, value);
         Ok(())
     }
 
@@ -498,7 +483,6 @@ impl Execution {
                                     return Ok(Some(return_value));
                                 }
                             }
-                            self.absorb_subscope(new_exec);
                         } else {
                             return Err(Error::RuntimeError { message: "If clause must be a boolean expression".into() });
                         }
@@ -511,7 +495,6 @@ impl Execution {
                                     if while_clause {
                                         let mut new_exec = self.create_subscope();
                                         let result = new_exec.execute_commands(block.nodes.clone()).await?;
-                                        self.absorb_subscope(new_exec);
                                         if let Some(return_value) = result {
                                             return Ok(Some(return_value));
                                         }
@@ -558,7 +541,6 @@ impl Execution {
         let mut new_exec = self.create_subscope();
         new_exec.execute_init(val, Expression::Value(BaseValue::Int(cycle))).await?;
         let result = new_exec.execute_commands(block.nodes.clone()).await;
-        self.absorb_subscope(new_exec);
         result
     }
 
@@ -585,13 +567,12 @@ impl Execution {
                                 let mut new_exec = self.create_subfunction();
                                 for (i, (name, _)) in params.iter().enumerate() {
                                     if i < vals.len() {
-                                        new_exec.scope.variables.insert(name.clone(), vals[i].clone());
+                                        new_exec.scope.lock().unwrap().variables.insert(name.clone(), vals[i].clone());
                                     } else {
                                         return Err(Error::RuntimeError { message: format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()).into() });
                                     }
                                 }
                                 let result = new_exec.execute_commands(body.nodes.clone()).await?;
-                                self.absorb_subfunction(new_exec);
                                 if let Some(return_value) = result {
                                     return Ok(return_value);
                                 }

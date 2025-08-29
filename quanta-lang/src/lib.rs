@@ -9,8 +9,7 @@ mod linear_runtime;
 
 use wasm_bindgen::prelude::*;
 
-use crate::utils::message::{CompilationMessage, LinearCompilationMessage};
-//use quanta_parser::parse_text;
+use crate::utils::message::{CompilationMessage};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.

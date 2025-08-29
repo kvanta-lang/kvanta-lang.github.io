@@ -1,14 +1,10 @@
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use gloo_timers::future::TimeoutFuture;
 use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, BaseValue, Expression, Operator, Type, UnaryOperator, VariableCall}, error::Error};
 use quanta_parser::ast::BaseType;
 use crate::utils::canvas::Canvas;
 use js_sys::Math;
-use std::pin::Pin;
-use std::future::Future;
 
-//use std::{thread, time::Duration};
 
 #[derive(Debug, Clone)]
 pub struct Scope {

@@ -21,9 +21,10 @@ let isRunning = false;
 
 // starter code
 const startCode = 
-`func mouse(int x, int y) {
+`func mouse(int z, int y) {
     setFigureColor(Color::Red);
-    rectangle(x, y, x+100, y+100);
+    rectangle(z, y, z+100, y+100);
+    x = x + 10;
 }
 
 func keyboard(int key) {
@@ -36,21 +37,21 @@ func keyboard(int key) {
           setFigureColor(Color::Yellow);
       }
     }
+    x = x - 10;
+}
+
+global {
+    int x = 320;
 }
 
 func main() {
+   animate();
    setLineColor(Color::Green);
    for i in (0..10000) {
-      circle(320, 240, i % 100);
+      circle(x, 240, i % 100);
    }
    rectangle(0, 0, 100, 100);
 }
-
-
-
-
-
-
 
 `;
 

@@ -1,6 +1,4 @@
-use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::{spawn_local};
-use quanta_parser::{ast::keys::key_to_number, error::Error};
+use quanta_parser::error::Error;
 
 use crate::{linear_execution::{Execution, Scope}, program::Program, utils::{canvas::{Canvas, CanvasReader}, message::CommandBlock}};
 

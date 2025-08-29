@@ -5,6 +5,7 @@ const bufferCanvas = document.createElement('canvas')
 bufferCanvas.width = 1000;
 bufferCanvas.height = 1000;
 const ctx    = bufferCanvas.getContext('2d', { alpha: false });
+console.log("Cancel animation");
 let isAnimation = false;
 let isCancelled = false;
 // FIXED SIZE: 1000x1000 logical pixels (scaled for HiDPI once)
@@ -25,6 +26,7 @@ export function checkIsCancelled() {
 
 export function cancelNow(value = true) {
   isCancelled = value;
+  isAnimation = false;
 }
 
 
@@ -32,8 +34,6 @@ export function clearCanvas(color = '#0a0f1f') {
   ctx.save(); ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
   ctx.restore();
-
-  isAnimation = false;
 
   ctx.save(); ctx.fillStyle = color;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -81,7 +81,7 @@ export function drawScript(script, should_draw_frame=false){
         case 'polygon': { const nums=[]; let i=1; for(;i<tok.length;i++){ if(tok[i].includes('=')) break; nums.push(Number(tok[i])); } const o=parseOptions(tok,i); applyStyle(o); drawPolygon(nums,o); break; }
         case 'arc': { const [_, cx, cy, r, a0, a1] = tok; const o=parseOptions(tok,6); applyStyle(o); drawArc(cx,cy,r,Number(a0),Number(a1),!!o.ccw,o); break; }
         case 'bg': case 'background': { const color = tok[1] || '#0a0f1f'; clearCanvas(color); break; }
-        case 'animate': {isAnimation = true;}
+        case 'animate': {isAnimation = true; console.log("GOT ANIMATION HERE! " + isAnimation);}
         case 'clear': {clearCanvas(); }
         default: /* ignore unknown */ break;
       }
@@ -89,6 +89,7 @@ export function drawScript(script, should_draw_frame=false){
   }
   ctx.restore();
   if (!isAnimation || should_draw_frame) {
+    console.log(!isAnimation + " or " + should_draw_frame)
     drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     drawCtx.drawImage(bufferCanvas, 0, 0);
   }

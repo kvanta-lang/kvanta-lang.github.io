@@ -100,7 +100,7 @@ impl Runtime {
 
         let exec = Execution {
             lines : prog.lines.clone(),
-            scope : Scope { variables: HashMap::new(), outer_scope: None },
+            scope : Arc::new(Mutex::new(Scope { variables: HashMap::new(), outer_scope: None })),
             global_vars: Arc::clone(&global_vars),
             canvas: canv.clone(),
             functions: prog.functions.clone(),
@@ -110,13 +110,17 @@ impl Runtime {
         };
 
         let keyboard_exec = if exec.functions.contains_key("keyboard") {
-             Some(exec.clone())
+            let mut c = exec.clone();
+            c.scope = Arc::new(Mutex::new(Scope { variables: HashMap::new(), outer_scope: None }));
+            Some(c)
         } else { 
             None 
         };
 
         let mouse_exec = if exec.functions.contains_key("mouse") { 
-            Some(exec.clone())
+            let mut c = exec.clone();
+            c.scope = Arc::new(Mutex::new(Scope { variables: HashMap::new(), outer_scope: None }));
+            Some(c)
         } else { 
             None 
         };
