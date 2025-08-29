@@ -1,0 +1,30 @@
+{
+  "name": "quanta",
+  "version": "1.0.0",
+  "description": "Installation instructions:",
+  "main": "index.js",
+  "devDependencies": {
+    "vite": "^7.1.3"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DShcherbak/Quanta.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DShcherbak/Quanta/issues"
+  },
+  "homepage": "https://github.com/DShcherbak/Quanta#readme",
+  "dependencies": {
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.38.1"
+  }
+}

@@ -1,9 +1,9 @@
 // CodeMirror bits (via esm.sh, no local install needed)
-import { EditorView, lineNumbers, highlightActiveLine } from "https://esm.sh/@codemirror/view@6";
-import { EditorState } from "https://esm.sh/@codemirror/state@6";
-import { defaultKeymap, history, historyKeymap } from "https://esm.sh/@codemirror/commands@6";
-import { indentOnInput } from "https://esm.sh/@codemirror/language@6";
-import { oneDark } from "https://esm.sh/@codemirror/theme-one-dark@6";
+import { EditorView, lineNumbers, highlightActiveLine } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { indentOnInput } from "@codemirror/language";
+import { oneDark } from "@codemirror/theme-one-dark";
 
 // Language support (your Lezer parser compiled to quanta.js)
 import { quanta } from "./quanta-support.js";
