@@ -29,7 +29,31 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let text = "circle(320, 240, 100);";
+        let text = "func mouse(int x, int y) {
+    setFigureColor(Color::Red);
+    rectangle(x, y, x+100, y+100);
+}
+
+func keyboard(int key) {
+    if (key == Key::Space) {
+        setFigureColor(Color::Blue);
+    } else {
+      if (key == Key::As) {
+          setFigureColor(Color::Black);
+      } else {
+          setFigureColor(Color::Yellow);
+      }
+    }
+}
+
+func main() {
+   setLineColor(Color::Green);
+   for i in (0..10000) {
+      circle(320, 240, i % 100);
+   }
+   rectangle(0, 0, 100, 100);
+}
+";
         let wrong_text = "circle(320q, 240, 100);";
         assert!(parse_ast(text).is_ok());
         assert!(parse_ast(wrong_text).is_err());

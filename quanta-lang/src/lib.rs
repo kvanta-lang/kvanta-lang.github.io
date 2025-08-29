@@ -4,10 +4,12 @@ mod program;
 mod execution;
 mod tests;
 mod runtime;
+mod linear_execution;
+mod linear_runtime;
 
 use wasm_bindgen::prelude::*;
 
-use crate::{utils::message::CompilationMessage};
+use crate::utils::message::{CompilationMessage, LinearCompilationMessage};
 //use quanta_parser::parse_text;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -47,10 +49,10 @@ impl Compiler {
 
 #[test]
     fn test_file() {
-        let file_path = "../grammar/test.txt";
+        // let file_path = "../grammar/test.txt";
 
-        let contents = std::fs::read_to_string(file_path)
-            .expect("Should have been able to read the file");
+        // let contents = std::fs::read_to_string(file_path)
+        //     .expect("Should have been able to read the file");
         //assert!(contents.len() > 0);
         //let result = Compiler::new().compile(&contents);
        // println!("{}\n=====================================", result.await);

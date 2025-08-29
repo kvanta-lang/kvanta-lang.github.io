@@ -2,64 +2,37 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{spawn_local};
 use quanta_parser::{ast::keys::key_to_number, error::Error};
 
-use crate::{execution::{Execution, Scope}, program::Program, utils::{canvas::{Canvas, CanvasReader}, message::CommandBlock}};
+use crate::{linear_execution::{Execution, Scope}, program::Program, utils::{canvas::{Canvas, CanvasReader}, message::CommandBlock}};
 
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{collections::HashMap, fmt::Debug, sync::{Arc, Mutex}};
 
-#[wasm_bindgen]
+
 #[derive(Clone)]
 pub struct Runtime {
     main_execution: Execution,
-    key_execution: Option<Execution>,
-    mouse_execution: Option<Execution>,
+    //key_execution: Option<Execution>,
+    //mouse_execution: Option<Execution>,
     canvas: CanvasReader,
     global_error: Option<Error>,
 }
 
+impl Debug for Runtime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Runtime")
+         .field("execution", &self.main_execution)
 
-#[wasm_bindgen]
+         .finish()
+    }
+}
+
+
 impl Runtime {
-    pub fn execute(&self) {
+    pub fn execute(&self) -> Result<(), Error> {
         if self.global_error.is_some() {
             panic!("Got error: {}", self.global_error.clone().unwrap());
         }
         let new_exec = self.main_execution.clone();
-        spawn_local(async move {
-            match new_exec.clone().execute().await {
-            Ok(_) => {},
-            Err(err) => {
-                panic!("Got error: {}", err);
-            }
-        }
-        })
-    }
-
-    pub fn execute_key(&self, key: String) {
-        if let Some(key_code) = key_to_number(key.as_str()) {
-            if let Some(exec) = self.key_execution.clone() {
-                    spawn_local(async move {
-                    match exec.clone().execute_key(key_code).await {
-                    Ok(_) => {},
-                    Err(err) => {
-                        panic!("Got error: {}", err);
-                    }
-                }
-                })
-            }   
-        }
-    }
-
-    pub fn execute_mouse(&self, x: i32, y:i32) {
-        if let Some(exec) = self.mouse_execution.clone() {
-                spawn_local(async move {
-                match exec.clone().execute_mouse(x, y).await {
-                Ok(_) => {},
-                Err(err) => {
-                    panic!("Got error: {}", err);
-                }
-            }
-            })
-        }   
+        return  new_exec.clone().execute();
     }
 
     pub fn get_commands(&mut self) -> Vec<CommandBlock> {
@@ -90,7 +63,7 @@ impl Runtime {
 }
 
 impl Runtime {
-    pub async fn new(prog : Program, canv: Canvas, canvas: CanvasReader) -> Runtime {
+    pub fn new(prog : Program, canv: Canvas, canvas: CanvasReader) -> Runtime {
         //let exec = Execution::from_program(prog.clone(), canv);
         let global_vars = Arc::new(Mutex::new(HashMap::new()));
         let global_var_defs = Arc::new(Mutex::new(prog.global_vars));
@@ -100,7 +73,7 @@ impl Runtime {
 
         let exec = Execution {
             lines : prog.lines.clone(),
-            scope : Scope { variables: HashMap::new(), outer_scope: None },
+            scope : Arc::new(Mutex::new(Scope { variables: HashMap::new(), outer_scope: None })),
             global_vars: Arc::clone(&global_vars),
             canvas: canv.clone(),
             functions: prog.functions.clone(),
@@ -109,17 +82,17 @@ impl Runtime {
             line_width: Arc::clone(&lin_wid),
         };
 
-        let keyboard_exec = if exec.functions.contains_key("keyboard") {
-             Some(exec.clone())
-        } else { 
-            None 
-        };
+        // let keyboard_exec = if exec.functions.contains_key("keyboard") {
+        //      Some(exec.clone())
+        // } else { 
+        //     None 
+        // };
 
-        let mouse_exec = if exec.functions.contains_key("mouse") { 
-            Some(exec.clone())
-        } else { 
-            None 
-        };
+        // let mouse_exec = if exec.functions.contains_key("mouse") { 
+        //     Some(exec.clone())
+        // } else { 
+        //     None 
+        // };
 
         let defs = global_var_defs.lock().unwrap();
 
@@ -127,7 +100,7 @@ impl Runtime {
 
         for (name, (_, expr)) in defs.iter() {
             let mut new_exec = exec.clone().create_subscope();
-            let val = new_exec.calculate_expression(expr.clone()).await;
+            let val = new_exec.calculate_expression(expr.clone());
             match val {
                 Ok(value) => {
                     exec.global_vars.lock().unwrap().insert(name.clone(), value)
@@ -138,8 +111,8 @@ impl Runtime {
 
         Runtime { 
             main_execution: exec, 
-            key_execution: keyboard_exec,
-            mouse_execution: mouse_exec,
+            //key_execution: keyboard_exec,
+            //mouse_execution: mouse_exec,
             canvas: canvas,
             global_error: global_err
         }

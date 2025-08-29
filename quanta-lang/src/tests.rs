@@ -1,19 +1,30 @@
+use crate::{utils::message::LinearCompilationMessage, Compiler};
+
+impl Compiler {
+    pub fn linear_compile_code(&mut self, source : &str) -> LinearCompilationMessage {
+        self.linear_compile(source)
+    }
+}
 
 #[cfg(test)]
 mod tests {
+    
     use crate::Compiler;
 
     fn compile_ok(src: &str) -> Vec<String> {
         let mut compiler = Compiler::new();
-        let msg = compiler.compile(src);
+        let msg = compiler.linear_compile(src);
         assert_eq!(msg.error_code, 0, "Unexpected compile error: {}", msg.get_error_message());
         let mut exec = msg.get_runtime();
-        exec.execute();
-        exec.get_commands().iter().fold(vec![], 
+        assert_eq!(Ok(()), exec.execute());
+        let blocks = exec.get_commands();
+        blocks.iter().fold(vec![], 
         |mut res, block| {
             let mut coms = block.get_commands();
             res.append(&mut coms);
-            res.push(format!("sleep {}", block.sleep_for).into());
+            if block.sleep_for >= 0 {
+                res.push(format!("sleep {}", block.sleep_for).into());
+            }
             res
         })
     }
@@ -328,7 +339,7 @@ mod tests {
         let src = r#"
             polygon(0,0, 10,0);
         "#;
-        let msg = Compiler::new().compile(src);
+        let msg = Compiler::new().linear_compile_code(src);
         assert_ne!(msg.error_code, 0);
         assert!(msg.get_error_message().to_lowercase().contains("polygon"));
         assert!(msg.get_error_message().to_lowercase().contains("6"));
@@ -447,6 +458,24 @@ mod tests {
                 setFigureColor(Color::Red);
             }
             rectangle(0,0, 10,10);
+        "#;
+        let cmds = compile_ok(src);
+        let expected = vec![
+            "rectangle 0 0 10 10 fill=#e92331 stroke=#000000 width=1".to_string(), // red persists
+        ];
+        assert_eq!(cmds, expected);
+    }
+
+    #[test]
+    fn scope_set_inside_if_persists_after_block() {
+        // Assuming style changes are global (not block-scoped).
+        let src = r#"
+            int x = 0;
+            if (1 == 1) {
+                x = 10;
+                setFigureColor(Color::Red);
+            }
+            rectangle(0,0, x,x);
         "#;
         let cmds = compile_ok(src);
         let expected = vec![

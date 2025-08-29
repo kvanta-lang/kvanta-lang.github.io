@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pest::iterators::{Pairs, Pair};
-use crate::{ast::{AstFunction, AstProgram, FunctionsAndGlobals, HalfParsedAstFunction, SimpleExpression, SimpleValue, Type, TypeName, VariableCall}, error::Error, Rule};
+use crate::{ast::{keys::key_to_number, AstFunction, AstProgram, FunctionsAndGlobals, HalfParsedAstFunction, SimpleExpression, SimpleValue, Type, TypeName, VariableCall}, error::Error, Rule};
 
 
 use super::{AstBlock, AstNode, Expression, Operator,  BaseType, BaseValue, goes_before, UnaryOperator };
@@ -379,7 +379,14 @@ fn build_ast_from_if(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {
     return Ok(AstNode::If { 
         clause: self.build_ast_from_expression(iter.next().unwrap())?, 
         block: self.build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?,
-        else_block: iter.next().and_then(|rule| Some(self.build_ast_from_block(rule.into_inner().into_iter().next().unwrap().into_inner()).unwrap()))
+        else_block: { 
+            if let Some(rule) = iter.next() {
+                let block = self.build_ast_from_block(rule.into_inner().into_iter().next().unwrap().into_inner())?;
+                    Some(block)
+            } else { 
+                None 
+            }
+        }
     })
 }
 
@@ -401,6 +408,7 @@ fn build_ast_from_value(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
         Rule::decimal => Ok(BaseValue::Float(val.as_str().parse::<f32>().unwrap())),
         Rule::boolean => Ok(BaseValue::Bool(val.as_str() == "true")),
         Rule::color   => self.build_ast_from_color(val),
+        Rule::key     => self.build_ast_from_key(val),
         Rule::noun   => Ok(BaseValue::Id(self.build_ast_from_noun(val)?)),
         Rule::array_literal => {
             let mut elements = vec![];
@@ -448,6 +456,16 @@ fn build_ast_from_color(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
         "Color::Random" => Ok(BaseValue::RandomColor),
         _ => Err(Error::ParseError { message: format!("Unknown color: {}", val.as_str()).into() })
     }
+}
+
+fn build_ast_from_key(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
+    let str = val.as_str();
+    if str.starts_with("Key::") {
+        if let Some(num) = key_to_number(str.split_at(5).1) {
+            return Ok(BaseValue::Int(num));
+        }
+    }
+    return Err(Error::ParseError { message: format!("Unknown key: {}", val.as_str()).into() });
 }
 
 fn build_ast_from_while(&self, command: Pairs<Rule>) -> Result<AstNode, Error> {

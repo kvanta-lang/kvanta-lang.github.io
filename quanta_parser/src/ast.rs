@@ -5,6 +5,7 @@ use pest::iterators::Pairs;
 use crate::{error::Error, Rule};
 
 pub mod builder;
+pub mod keys;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BaseType {
     Int,

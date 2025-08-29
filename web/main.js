@@ -27,7 +27,15 @@ const startCode =
 }
 
 func keyboard(int key) {
-    setFigureColor(Color::Green);
+    if (key == Key::Space) {
+        setFigureColor(Color::Blue);
+    } else {
+      if (key == Key::A) {
+          setFigureColor(Color::Black);
+      } else {
+          setFigureColor(Color::Yellow);
+      }
+    }
 }
 
 func main() {
@@ -37,6 +45,10 @@ func main() {
    }
    rectangle(0, 0, 100, 100);
 }
+
+
+
+
 
 
 

@@ -2,11 +2,11 @@ use std::fmt;
 
 use wasm_bindgen::prelude::*;
 use quanta_parser::{error::Error};
-use crate::runtime::Runtime;
+use crate::{linear_runtime, runtime::Runtime};
 
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CommandBlock{
     commands: Vec<String>,
     pub sleep_for: i32,
@@ -37,6 +37,13 @@ pub struct CompilationMessage {
     pub error_code: u32,
     error_message: String,
     runtime: Option<Runtime>
+}
+
+
+pub struct LinearCompilationMessage {
+    pub error_code: u32,
+    error_message: String,
+    runtime: Option<linear_runtime::Runtime>
 }
 
 #[wasm_bindgen]
@@ -75,6 +82,44 @@ impl CompilationMessage {
             }
             Error::RuntimeError { ref message } => {
                 CompilationMessage { error_code:4, error_message: message.to_string(), runtime: None }
+            }
+        }
+    }
+}
+
+impl LinearCompilationMessage {
+
+
+    pub fn get_runtime(&self) -> linear_runtime::Runtime {
+        self.runtime.clone().unwrap()
+    }
+
+    pub fn get_error_message(&self) -> String {
+        self.error_message.clone()
+    }
+
+
+    pub(crate) fn ok(runtime: linear_runtime::Runtime) -> LinearCompilationMessage {
+        LinearCompilationMessage {
+            error_code: 0,
+            error_message: "".to_string(),
+            runtime: Some(runtime)
+        }
+    }
+
+    pub(crate) fn create_error_message(error: Error) -> LinearCompilationMessage {
+        match error {
+            Error::ParseError { ref message } => {
+                LinearCompilationMessage { error_code:1, error_message: message.to_string(), runtime: None }
+            }
+            Error::LogicError { ref message } => {
+                LinearCompilationMessage { error_code:2, error_message: message.to_string(), runtime: None }
+            }
+            Error::TypeError { ref message } => {
+                LinearCompilationMessage { error_code:3, error_message: message.to_string(), runtime: None }
+            }
+            Error::RuntimeError { ref message } => {
+                LinearCompilationMessage { error_code:4, error_message: message.to_string(), runtime: None }
             }
         }
     }

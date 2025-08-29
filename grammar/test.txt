@@ -1,1 +1,8 @@
-circle(320, 240, 100);
+
+func main() {
+   setLineColor(Color::Green);
+   rectangle(0, 0, 100, 100);
+}
+
+
+
