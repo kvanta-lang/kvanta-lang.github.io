@@ -8,15 +8,17 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixpkgs.url = "nixpkgs/nixos-23.11";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, fenix, nixpkgs, flake-utils }:
+  outputs = { self, fenix, nixpkgs, nixpkgs-unstable, flake-utils }:
 
     flake-utils.lib.eachDefaultSystem
       (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          pkgsUnstable = nixpkgs-unstable.legacyPackages.${system};
           f = with fenix.packages.${system}; combine [
             stable.toolchain
             targets.wasm32-unknown-unknown.stable.rust-std
@@ -32,7 +34,7 @@
                   f
                   llvmPackages.bintools
                   nodePackages.typescript-language-server # <-- change here
-                  nodejs_21
+                  pkgsUnstable.nodejs_22
                   vscode-langservers-extracted # <-- change here
                   wasm-pack
 		  python3
