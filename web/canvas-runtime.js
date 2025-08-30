@@ -3,16 +3,18 @@ const drawCanvas = document.getElementById('canvas');
 const drawCtx = drawCanvas.getContext('2d', { alpha: false });
 const bufferCanvas = document.createElement('canvas')
 bufferCanvas.width = 1000;
-bufferCanvas.height = 1000;
+  bufferCanvas.height = 1000;
 const ctx    = bufferCanvas.getContext('2d', { alpha: false });
 console.log("Cancel animation");
 let isAnimation = false;
 let isCancelled = false;
 // FIXED SIZE: 1000x1000 logical pixels (scaled for HiDPI once)
-const CANVAS_W = 800, CANVAS_H = 800;
+const CANVAS_W = 1000, CANVAS_H = 1000;
 const DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
 drawCanvas.width  = Math.floor(CANVAS_W * DPR);
 drawCanvas.height = Math.floor(CANVAS_H * DPR);
+bufferCanvas.width = drawCanvas.width;
+bufferCanvas.height = drawCanvas.height ;
 ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
 export function log(text) {
@@ -67,7 +69,10 @@ function drawArc(cx,cy,r,a0,a1,ccw,o){ ctx.beginPath(); ctx.arc(toPx(cx,'x'), to
 export function drawScript(script, should_draw_frame=false){
   ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
   const lines = String(script||'').split(/,/);
+  //bufferCanvas.width = drawCanvas.width;
+  //bufferCanvas.height = drawCanvas.height;
   for (const raw of lines) {
+    
     if (isCancelled) { return; }
     const line = raw.trim();
     if (!line || line.startsWith('//')) continue;
@@ -92,5 +97,23 @@ export function drawScript(script, should_draw_frame=false){
     console.log(!isAnimation + " or " + should_draw_frame)
     drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     drawCtx.drawImage(bufferCanvas, 0, 0);
+  }
+}
+
+export function resizeCanvases() {
+  
+  const rect = drawCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+
+  // Match canvas internal size to actual visible size * device pixel ratio
+  const width = Math.floor(rect.width * dpr);
+  const height = Math.floor(rect.height * dpr);
+
+  if (drawCanvas.width !== width || drawCanvas.height !== height) {
+    drawCanvas.width = width;
+    drawCanvas.height = height;
+    bufferCanvas.width = width;
+        bufferCanvas.height = height;
+
   }
 }

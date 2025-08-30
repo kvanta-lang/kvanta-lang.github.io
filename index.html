@@ -18,7 +18,9 @@
 
     .app {
       height: 100%;
-      display: grid;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
       grid-template-rows: auto 1fr;
     }
 
@@ -38,8 +40,10 @@
     button:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .panes {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: 100%;
-    }
+  display: grid;
+  grid-template-columns: 1fr 4px 1fr; /* default: side-by-side with resizer */
+  height: 100%;
+}
     .pane {
       position: relative; height: 100%; width: 100%;
       border-right: 1px solid var(--border);
@@ -60,30 +64,101 @@
     }
 
     /* CodeMirror container fills the pane */
-    #editor { position: absolute; inset: 0; }
+    #editor { position: absolute;
+  top: 0; bottom: 0; left: 0; right: 0;
+  overflow: auto;  }
 
     /* Small screens: stack panes */
     @media (max-width: 900px) {
-      .panes { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-      .pane { border-right: 0; border-bottom: 1px solid var(--border); }
-      .pane:last-child { border-bottom: 0; }
+  .panes {
+    flex-direction: column;
+    grid-template-columns: 1fr;       /* stack vertically */
+    grid-template-rows: auto auto;    /* one row per pane */
+  }
+
+  .resizer {
+    display: none;
+  }
+
+  .pane {
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .pane:last-child {
+    border-bottom: none;
+  }
+
+  .editor {
+    display: flex;
+    flex-grow: 1; /* Allows the editor to fill remaining space */
+      overflow-y: auto; /* This is the key change to enable scrolling */
+  }
+}
+
+    .resizer {
+      background: var(--border);
+      cursor: col-resize;
+      width: 4px;
+      height: 100%;
     }
     /* Canvas + logs layout in right pane */
-    .resultWrap { 
-    position: absolute; inset: 0; 
-    display: flex; flex-direction: column; 
-    align-items: center; 
-    overflow: auto; 
-    padding: 1px solid rgba(226,232,240,0.1);
-    width: 1000px; 
-    }
+    .resultWrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
 
-    #canvas { 
-    width: 1000px; 
-    height: 1000px; 
-    background: #0a0f1f; 
-    display: block; 
-    }
+    /* .canvasContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+} */
+
+.canvasContainer {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.canvas {
+  width: 100%;
+  height: auto;
+  max-width: 1000px;
+  max-height: 100%;
+  aspect-ratio: 1 / 1;
+  background: #0a0f1f;
+  display: block;
+  object-fit: contain;
+  border: 1px solid rgba(255, 255, 255);
+}
+/* 
+
+.canvas {
+  width: 100%;
+  max-width: 1000px;
+  aspect-ratio: 1 / 1;
+  background: #0a0f1f;
+  display: block;
+  height: auto;
+  object-fit: contain;
+} */
 
     #logs { 
     width: 100%; 
@@ -102,17 +177,19 @@
       <button id="runBtn">Run (Ctrl/Cmd+Enter)</button>
     </div>
     <div class="panes">
-      <section class="pane">
+      <div class="pane">
         <div class="pane__header">Source</div>
         <div id="editor"></div>
-      </section>
-      <section class="pane">
+      </div>
+      <div class="resizer" id="resizer" aria-hidden="true"></div>
+      <div class="pane">
         <div class="pane__header">Result</div>
         <div class="resultWrap">
-          <canvas id="canvas" width="600" height="400" tabindex="0"></canvas>
-          <pre id="logs"></pre>
+          <div class="canvasContainer">
+            <canvas id="canvas" class="canvas" width="1000" height="1000" tabindex="0"></canvas>
+          </div>
         </div>
-      </section>
+      </div>
     </div>
   </div>
   <script type="module" src="./web/main.js"></script>

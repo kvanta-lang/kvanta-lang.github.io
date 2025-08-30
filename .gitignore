@@ -39,7 +39,6 @@ media
 .Python
 build/
 develop-eggs/
-node_modules/
 downloads/
 eggs/
 .eggs/

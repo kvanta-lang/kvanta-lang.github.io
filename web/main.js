@@ -45,7 +45,6 @@ global {
 }
 
 func main() {
-   animate();
    setLineColor(Color::Green);
    for i in (0..10000) {
       circle(x, 240, i % 100);
@@ -189,14 +188,41 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-canvas.addEventListener('click', (e) => {
+const resizer = document.getElementById('resizer');
+const panes = document.querySelector('.panes');
+let isDragging = false;
+
+resizer.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  document.body.style.cursor = 'col-resize';
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const totalWidth = panes.getBoundingClientRect().width;
+  const leftWidth = e.clientX;
+  const rightWidth = totalWidth - leftWidth - 4; // 4 = resizer width
+  panes.style.gridTemplateColumns = `${leftWidth}px 4px ${rightWidth}px`;
+});
+
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  document.body.style.cursor = '';
+});
+
+document.getElementById("canvas").addEventListener('click', (e) => {
+  console.log("Got click!");
   if (!runtime) return;
 
   const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  console.log(e.clientX, rect.left, rect.width);
+  const x = (e.clientX - rect.left) / rect.width * 1000;
+  const y = (e.clientY - rect.top) /rect.height * 1000;
 
   try {
+    const dpr = window.devicePixelRatio || 1;
+
+  // Match canvas internal size to actual visible size * device pixel ratio
     console.log("Mouse on x: " + x + " Y: " + y);
     executeMouse(x, y);
   } catch (err) {
@@ -213,4 +239,8 @@ canvas.addEventListener('click', (e) => {
 //   }
 // });
 
+//resizeCanvasToDisplaySize();
 editor.focus();
+
+//const observer = new ResizeObserver(() => resizeCanvasToDisplaySize());
+//observer.observe(canvas);
