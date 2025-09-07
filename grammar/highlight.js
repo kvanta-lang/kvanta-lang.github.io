@@ -2,9 +2,9 @@ import {styleTags, tags as t} from "@lezer/highlight"
 
 export const jsHighlight = styleTags({
   "get set async static": t.modifier,
-  "for while do if else": t.variableName,
-  "in of await yield void typeof delete instanceof": t.operatorKeyword,
-  //"with debugger as new circle rectangle line setLineColor setFigureColor Color Green Blue Red Cyan Pink Black White": t.string,
+  "for while do if else": t.keyword,
+  "of await yield void typeof delete instanceof": t.operatorKeyword,
+  //"with debugger as new circle rectangle line setLineColor setFigureColor Color Green Blue Red Cyan Pink Black White": t.keyword,
   TemplateString: t.special(t.string),
   super: t.atom,
   BooleanLiteral: t.bool,

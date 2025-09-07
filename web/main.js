@@ -4,6 +4,7 @@
 //import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 //import { indentOnInput } from "@codemirror/language";
 import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
+import {barf} from 'thememirror';
 //import { autocompletion } from "@codemirror/autocomplete";
 import {EditorState} from "@codemirror/state"
 import { HighlightStyle, tags as t } from "@codemirror/highlight";
@@ -25,7 +26,7 @@ import {
   closeBracketsKeymap, completionKeymap
 } from "@codemirror/autocomplete"
 // Language support (your Lezer parser compiled to quanta.js)
-import { quanta, quantaHighlightStyle } from "./quanta-support.ts";
+import { quanta } from "./quanta-support.ts";
 
 
 // Canvas runtime (drawScript + utilities)
@@ -112,7 +113,7 @@ const editor = new EditorView({
     highlightActiveLine(),
     // Style the gutter for current line specially
     highlightActiveLineGutter(),
-    //oneDark,
+    barf,
     //quantaHighlightStyle,
     quanta(),
     //keymap.of([{key: "Tab", run: acceptCompletion}]),
