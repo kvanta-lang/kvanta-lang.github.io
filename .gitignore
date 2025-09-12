@@ -40,6 +40,7 @@ media
 build/
 develop-eggs/
 downloads/
+node_modules/
 eggs/
 .eggs/
 lib/
