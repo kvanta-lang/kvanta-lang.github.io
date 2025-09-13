@@ -11,6 +11,9 @@ let isCancelled = false;
 // FIXED SIZE: 1000x1000 logical pixels (scaled for HiDPI once)
 const CANVAS_W = 1000, CANVAS_H = 1000;
 const DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+let randomColors = [];
+
 drawCanvas.width  = Math.floor(CANVAS_W * DPR);
 drawCanvas.height = Math.floor(CANVAS_H * DPR);
 bufferCanvas.width = drawCanvas.width;
@@ -20,6 +23,11 @@ ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 export function log(text) {
   if (typeof text !== 'string') text = String(text);
   logEl.textContent = text;
+}
+
+export function setup() {
+  randomColors = [];
+  clearCanvas();
 }
 
 export function checkIsCancelled() {
@@ -32,7 +40,7 @@ export function cancelNow(value = true) {
 }
 
 
-export function clearCanvas(color = '#0a0f1f') {
+function clearCanvas(color = '#0a0f1f') {
   ctx.save(); ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
   ctx.restore();
@@ -50,11 +58,36 @@ function toPx(val, axis) {
   return +val;
 }
 
+function randomColorString() {
+  const r = Math.floor(255 * Math.random());
+  const g = Math.floor(255 * Math.random());
+  const b = Math.floor(255 * Math.random());
+  return `rgb(${r},${g},${b})`;
+}
+
 const deg2rad = d => (d * Math.PI) / 180;
 function applyStyle(opts){ ctx.lineWidth = opts.width ?? 1; if (opts.stroke) ctx.strokeStyle = opts.stroke; if (opts.fill) ctx.fillStyle = opts.fill; }
 function parseOptions(tokens, startIdx){ 
     const o={}; for(let i=startIdx;i<tokens.length;i++){ 
-        const t=tokens[i], eq=t.indexOf('='); if(eq>0){ const k=t.slice(0,eq), v=t.slice(eq+1); if(k==='width') o.width=Number(v); else if(k==='stroke') o.stroke=v; else if(k==='fill') o.fill=v; else if(k==='ccw') o.ccw=/^(1|true|yes)$/i.test(v);} 
+        const t=tokens[i], eq=t.indexOf('='); 
+          if(eq>0){ 
+            let k=t.slice(0,eq), v=t.slice(eq+1); 
+            if (v.startsWith('RandomColor')) {
+              let idx = parseInt(v.slice(11));
+              if (isNaN(idx)) {
+                randomColors.push(randomColorString());
+                idx = randomColors.length - 1;
+              }
+              while (idx >= randomColors.length) {
+                randomColors.push(randomColorString());
+              }
+              v = randomColors[idx];
+            }
+            if(k==='width') o.width=Number(v); 
+            else if(k==='stroke') o.stroke=v; 
+            else if(k==='fill') o.fill=v; 
+            else if(k==='ccw') o.ccw=/^(1|true|yes)$/i.test(v);
+          } 
     }
     return o; 
 }
@@ -72,7 +105,6 @@ export function drawScript(script, should_draw_frame=false){
   //bufferCanvas.width = drawCanvas.width;
   //bufferCanvas.height = drawCanvas.height;
   for (const raw of lines) {
-    
     if (isCancelled) { return; }
     const line = raw.trim();
     if (!line || line.startsWith('//')) continue;

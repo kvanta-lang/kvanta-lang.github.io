@@ -4,7 +4,7 @@ use gloo_timers::future::TimeoutFuture;
 use quanta_parser::{ast::{AstBlock, AstNode, AstProgram, AstStatement, BaseValue, BaseValueType, Coords, Expression, ExpressionType, Operator, Type, UnaryOperator, VariableCall}, error::Error};
 use quanta_parser::ast::BaseType;
 use crate::utils::canvas::Canvas;
-use js_sys::Math;
+//use js_sys::Math;
 use std::pin::Pin;
 use std::future::Future;
 
@@ -65,6 +65,7 @@ pub struct Execution {
     pub figure_color : Arc<Mutex<String>>,
     pub line_color : Arc<Mutex<String>>,
     pub line_width : Arc<Mutex<i32>>,
+    pub random_color: Arc<Mutex<i32>>,
 }
 
 fn color_to_str(r: &u8, g : &u8, b: &u8) -> String {
@@ -76,6 +77,17 @@ macro_rules! expect_arg {
     // Варіант із полями: BaseValueType::Variant(pats...)
     ($fname:expr, $vals:expr, $idx:expr, $Variant:ident ( $($pat:pat),* ) => $build:expr) => {{
         let __arg_index = $idx; // збережемо, щоб не обчислювати двічі
+        if __arg_index >= $vals.len() {
+            return Err(Error::runtime(
+                format!(
+                    "{}: Expected at least {} arguments but got {}",
+                    $fname,
+                    __arg_index + 1,
+                    $vals.len()
+                ), 
+                (0,0,0,0)
+            ));
+        }
         match &$vals[__arg_index] {
             BaseValue{val: BaseValueType::$Variant($($pat),*), coords: _} => { $build }
             other => {
@@ -132,6 +144,7 @@ impl Execution {
             figure_color: Arc::clone(&self.figure_color),
             line_color: self.line_color.clone(),
             line_width: self.line_width.clone(),
+            random_color: Arc::clone(&self.random_color),
         }
     }
 
@@ -310,12 +323,13 @@ impl Execution {
                     *inner = color_to_str(r, g, b);
                     Ok(None)
                 }
-                else if let BaseValueType::RandomColor = &vals[0].val {
-                    let r = (255.0 * Math::random()) as u8;
-                    let g = (255.0 * Math::random()) as u8;
-                    let b = (255.0 * Math::random()) as u8;
+                else if let BaseValueType::RandomColor(n) = &vals[0].val {
+                    // let r = (255.0 * Math::random()) as u8;
+                    // let g = (255.0 * Math::random()) as u8;
+                    // let b = (255.0 * Math::random()) as u8;
                     let mut inner  = self.line_color.lock().unwrap();
-                    *inner = color_to_str(&r, &g, &b);
+                    // *inner = color_to_str(&r, &g, &b);
+                    *inner = format!("RandomColor{}", n);
                     Ok(None)
                 }
                 else {
@@ -328,12 +342,13 @@ impl Execution {
                     *inner = color_to_str(r, g, b);
                     Ok(None)
                 }
-                else if let BaseValueType::RandomColor = &vals[0].val {
-                    let r = (255.0 * Math::random()) as u8;
-                    let g = (255.0 * Math::random()) as u8;
-                    let b = (255.0 * Math::random()) as u8;
+                else if let BaseValueType::RandomColor(n) = &vals[0].val {
+                    // let r = (255.0 * Math::random()) as u8;
+                    // let g = (255.0 * Math::random()) as u8;
+                    // let b = (255.0 * Math::random()) as u8;
                     let mut inner  = self.figure_color.lock().unwrap();
-                    *inner =  color_to_str(&r, &g, &b);
+                    // *inner = color_to_str(&r, &g, &b);
+                    *inner = format!("RandomColor{}", n);
                     Ok(None)
                 }
                 else {
@@ -372,7 +387,21 @@ impl Execution {
             "clear" => {
                 self.canvas.add_command(format!("clear"));
                 Ok(None)
-            }
+            },
+            "rgb" => {
+                let r = expect_arg!("rgb", vals, 0, Int(v) => *v);
+                let g = expect_arg!("rgb", vals, 1, Int(v) => *v);
+                let b = expect_arg!("rgb", vals, 2, Int(v) => *v);
+                if r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 {
+                    return Err(Error::runtime(String::from("RGB values must be between 0 and 255"), coords));
+                }
+                Ok(Some(BaseValue{val: BaseValueType::Color(r as u8, g as u8, b as u8), coords}))
+            },
+            "Color::Random" => {
+                let mut rc = self.random_color.lock().unwrap();
+                *rc += 1;
+                Ok(Some(BaseValue{val: BaseValueType::RandomColor(*rc), coords}))
+            },
             name => {
                 if self.functions.contains_key(name) {
                     let (params, _, body) = self.functions.get(name).unwrap();
@@ -523,20 +552,21 @@ impl Execution {
                         }
                     },
                     AstStatement::For { val, from, to, block } => {
-                        if let BaseValueType::Int(f_) = from.val {
-                            if let BaseValueType::Int(t_) = to.val {
-                                let (f,t) = {
-                                    if f_ <= t_ {
-                                        (f_, t_)
-                                    } else {
-                                        (t_, f_)
-                                    }
-                                };
-                                for cycle in f..=t {
+                        if let BaseValueType::Int(f) = from.val {
+                            if let BaseValueType::Int(t) = to.val {
+                                if f <= t {
+                                    for cycle in f..=t {
                                     if let Some(return_value) = self.execute_for(val.clone(), cycle, block.clone(), line.coords).await?{
                                         return Ok(Some(return_value));
                                     }
-                                }                    
+                                }                  
+                                } else {
+                                    for cycle in (t..=f).rev() {
+                                        if let Some(return_value) = self.execute_for(val.clone(), cycle, block.clone(), line.coords).await?{
+                                            return Ok(Some(return_value));
+                                        }
+                                    }
+                                }                 
                             }
                         }
                     },
@@ -574,27 +604,18 @@ impl Execution {
                             self.get_variable(&var, expr.coords).await
                         },
                         BaseValueType::FunctionCall(name, exprs, _ ) => {
-                            let mut vals = vec![];
+                           let mut vals = vec![];
                             for expr in exprs {
+                                let c = expr.coords;
                                 let val = self.calculate_expression(expr).await?;
-                                vals.push(val);
+                                vals.push(Expression{expr_type: ExpressionType::Value(val), coords: c});
                             }
-                            if let Some((params, _, body)) = self.functions.get(&name) {
-                                let mut new_exec = self.create_subfunction();
-                                for (i, (name, _)) in params.iter().enumerate() {
-                                    if i < vals.len() {
-                                        new_exec.scope.lock().unwrap().variables.insert(name.clone(), vals[i].clone());
-                                    } else {
-                                        return Err(Error::runtime(format!("Function {} expects {} arguments, but got {}", name, params.len(), vals.len()), expr.coords));
-                                    }
-                                }
-                                let result = new_exec.execute_commands(body.nodes.clone()).await?;
-                                if let Some(return_value) = result {
-                                    return Ok(return_value);
-                                }
-                                return Err(Error::runtime(format!("Function {} didn't return a value", name), expr.coords));
+                            let mut new_exec = self.create_subfunction();
+                            let value = new_exec.execute_function(&name, vals, expr.coords).await?;
+                            if let Some(v) = value {
+                                return Ok(v);
                             }
-                            Err(Error::runtime(format!("Unknown function: {}", name), expr.coords))
+                            return Err(Error::runtime(format!("Function {} didn't return a value", name), expr.coords));
                         }
                         x => Ok(BaseValue { val: x, coords: base_value.coords })
                     }

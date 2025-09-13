@@ -29,7 +29,7 @@ impl Error {
         }
     }
 
-    pub fn typeEr(mes: String, pos: (usize, usize, usize, usize)) -> Error {
+    pub fn type_er(mes: String, pos: (usize, usize, usize, usize)) -> Error {
         Error {
             error_type: ErrorType::TypeError,
             message: mes,

@@ -27,6 +27,7 @@ pub fn new() -> AstBuilder
 }
 
 pub fn build_ast_from_doc(&mut self, docs: Pairs<Rule>) -> Result<AstProgram, Error> {
+    self.function_signatures.insert(String::from("rgb"), (vec![Type::typ(BaseType::Int), Type::typ(BaseType::Int), Type::typ(BaseType::Int)], Some(Type::typ(BaseType::Color))));
     assert!(docs.len() == 1);
     let doc = docs.into_iter().next().unwrap();
     assert!(doc.as_rule() == Rule::document);
@@ -464,10 +465,10 @@ fn build_ast_from_value(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
                 if let Some(typ) = return_type {
                     Ok(BaseValueType::FunctionCall(name, args, typ.clone()))
                 } else {
-                    Err(Error::typeEr(format!("Function {} has no return type", name), coords))
+                    Err(Error::type_er(format!("Function {} has no return type", name), coords))
                 }
             } else {
-                Err(Error::typeEr(format!("Unknown function {}", name), coords))
+                Err(Error::type_er(format!("Unknown function {}", name), coords))
             }
         }
         _ => return Err(Error::parse(String::from("Expected a value!"), coords!(val)))
@@ -494,7 +495,7 @@ fn build_ast_from_color(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
         "Color::Cyan" => Ok(BaseValueType::Color(59,168,231)),
         "Color::Black" => Ok(BaseValueType::Color(0, 0, 0)),
         "Color::White" => Ok(BaseValueType::Color(255, 255, 255)),
-        "Color::Random" => Ok(BaseValueType::RandomColor),
+        "Color::Random" => Ok(BaseValueType::FunctionCall(String::from("Color::Random"), vec![], Type::typ(BaseType::Color))),
         _ => Err(Error::parse(format!("Unknown color: {}", val.as_str()), coords!(val)))
     }?;
     Ok(BaseValue { val: v, coords: coords!(val) })
@@ -526,7 +527,7 @@ fn build_ast_from_array_type(&self, type_val: Pairs<Rule>) -> Result<TypeName, E
     let coords = coords!(val);
     if let BaseValue{val: BaseValueType::Int(array_size), coords: c} = self.build_ast_from_value(val)? {
         if array_size <= 0 {
-            return Err(Error::parse(String::from("Array size must be greater than 0"), coords));
+            return Err(Error::parse(String::from("Array size must be greater than 0"), c));
         }
         return Ok(TypeName::Array(Box::new(Some(inner_type)), array_size as usize));
     } else {

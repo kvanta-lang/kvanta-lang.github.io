@@ -107,6 +107,7 @@ impl Runtime {
             figure_color: Arc::clone(&fig_col),
             line_color: Arc::clone(&lin_col),
             line_width: Arc::clone(&lin_wid),
+            random_color: Arc::new(Mutex::new(0)),
         };
 
         let keyboard_exec = if exec.functions.contains_key("keyboard") {

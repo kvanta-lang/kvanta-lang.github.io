@@ -33,7 +33,7 @@ import { quanta, quantaSyntax, quantaLanguageSupport } from "./quanta-support.ts
 import { quantaTheme } from "./custom-theme";
 
 // Canvas runtime (drawScript + utilities)
-import { drawScript, clearCanvas, checkIsCancelled, cancelNow } from "./canvas-runtime.js";
+import { drawScript, setup, checkIsCancelled, cancelNow } from "./canvas-runtime.js";
 
 // WASM glue (wasm-pack output); adjust crate name/path
 import initWasm, { Compiler } from "../quanta-lang/pkg/quanta_lang.js"; 
@@ -299,7 +299,7 @@ function doRun() {
       cancelNow(false);
       isRunning = true;
       runBtn.disabled = true;
-      clearCanvas();
+      setup();
       await initWasm();
       const src = editor.state.doc.toString();
       let compiler = Compiler.new();

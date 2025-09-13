@@ -357,6 +357,15 @@ impl Execution {
             "clear" => {
                 self.canvas.add_command(format!("clear"));
                 Ok(None)
+            },
+            "rgb" => {
+                let r = expect_arg!("rgb", vals, 0, Int(v) => *v);
+                let g = expect_arg!("rgb", vals, 1, Int(v) => *v);
+                let b = expect_arg!("rgb", vals, 2, Int(v) => *v);
+                if r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 {
+                    return Err(Error::runtime(String::from("RGB values must be between 0 and 255"), coords));
+                }
+                Ok(Some(BaseValue{val: BaseValueType::Color(r as u8, g as u8, b as u8), coords}))
             }
             name => {
                 if self.functions.contains_key(name) {

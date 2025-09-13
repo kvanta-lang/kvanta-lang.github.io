@@ -103,8 +103,14 @@ pub fn create_program(ast: AstProgram) -> Program {
         (String::from("animate"), (vec![], None)),
         (String::from("frame"), (vec![], None)),
         (String::from("clear"), (vec![], None)),
+        (String::from("Color::Random"), (vec![], Some(color_type()))),
+        (String::from("rgb"), (vec![
+            (String::from("r"), int_type()),
+            (String::from("g"), int_type()),
+            (String::from("b"), int_type())
+        ], Some(color_type()))),
     ]), keywords: HashSet::from(["circle", "line", "rectangle", 
-                    "setLineColor", "setFigureColor", "setLineWidth", "polygon", "arc", "sleep", "animate", "frame", "clear",
+                    "setLineColor", "setFigureColor", "setLineWidth", "polygon", "arc", "sleep", "animate", "frame", "clear", "rgb",
                     "for", "while", "global", "func", "if", "else",
                     "int", "bool", "color", "float", "array", "Color", "true", "false"
     ].map(|x| String::from(x)))}
@@ -145,39 +151,39 @@ impl Program {
             AstProgram::Forest(ref forest) => {
                 for func in &forest.0 {
                     if self.keywords.contains(&func.name) {
-                        return Err(Error::typeEr(format!("'{}' is a keyword, it cannot be the name of a function", func.name), func.header));
+                        return Err(Error::type_er(format!("'{}' is a keyword, it cannot be the name of a function", func.name), func.header));
                     }
                     for (argname, _) in &func.args {
                         if self.keywords.contains(argname) { 
-                            return Err(Error::typeEr(format!("'{}' is a keyword, it cannot be the name of a variable", argname), func.header));
+                            return Err(Error::type_er(format!("'{}' is a keyword, it cannot be the name of a variable", argname), func.header));
                         }
                     }
                     if &func.name == "keyboard" {
                         if func.args.len() != 1 {
-                            return Err(Error::typeEr(format!("Special function 'keyboard' has to have exactly 1 argument"), func.header));
+                            return Err(Error::type_er(format!("Special function 'keyboard' has to have exactly 1 argument"), func.header));
                         }
                         if func.args.get(0).unwrap().clone().1.type_name != TypeName::Primitive(BaseType::Int) {
-                            return Err(Error::typeEr(format!("Special function 'keyboard' has to receive an integer, but got {}", func.args.get(0).unwrap().clone().1.to_string()), func.header));
+                            return Err(Error::type_er(format!("Special function 'keyboard' has to receive an integer, but got {}", func.args.get(0).unwrap().clone().1.to_string()), func.header));
                         }
                     }
                     if &func.name == "mouse" {
                         if func.args.len() != 2 {
-                            return Err(Error::typeEr(format!("Special function 'mouse' has to have exactly 2 arguments"), func.header));
+                            return Err(Error::type_er(format!("Special function 'mouse' has to have exactly 2 arguments"), func.header));
                         }
                         if func.args.get(0).unwrap().clone().1.type_name != TypeName::Primitive(BaseType::Int)
                          || func.args.get(1).unwrap().clone().1.type_name != TypeName::Primitive(BaseType::Int) {
-                            return Err(Error::typeEr(format!("Special function 'mouse' has to receive two integers, but got {} and {}", func.args.get(0).unwrap().clone().1.to_string(), func.args.get(1).unwrap().clone().1.to_string()), func.header));
+                            return Err(Error::type_er(format!("Special function 'mouse' has to receive two integers, but got {} and {}", func.args.get(0).unwrap().clone().1.to_string(), func.args.get(1).unwrap().clone().1.to_string()), func.header));
                         }
                     }
                     self.function_defs.insert(func.name.clone(), (func.args.clone(), func.return_type.clone()));
                 }
                 for (name, (coords, typ, expr)) in &forest.1 {
                     if self.keywords.contains(name) {
-                        return Err(Error::typeEr(format!("'{}' is a keyword, it cannot be the name of a variable", name), *coords));
+                        return Err(Error::type_er(format!("'{}' is a keyword, it cannot be the name of a variable", name), *coords));
                     }
                     let expr_type = self.type_check_expr(&expr.clone())?;
                     if expr_type.type_name != typ.type_name {
-                        return Err(Error::typeEr(format!("Global variable {} of type {} cannot be assigned a type {}", name, typ.to_string(), expr_type.to_string()), *coords));
+                        return Err(Error::type_er(format!("Global variable {} of type {} cannot be assigned a type {}", name, typ.to_string(), expr_type.to_string()), *coords));
                     }
                     if self.contains_key(name) {
                         return Err(Error::logic(format!("Global variable {} is re-defined!", name), *coords));
@@ -185,7 +191,6 @@ impl Program {
                     self.global_vars.insert(name.clone(), (typ.clone(), expr.clone()));
                 }
                 for func in &forest.0 {
-                    
                     let mut sub = self.create_subprogram(None);
                     for arg in &func.args {
                         let simple_expr = {
@@ -373,7 +378,7 @@ impl Program {
                         Err(error) => return Some(error),
                         Ok(arg_type) => {
                             if arg_type.type_name != Primitive(Int) {
-                                return Some(Error::typeEr(format!("Wrong type of argument for command {}: got {:?}, expected Int", name, arg_type), coords));
+                                return Some(Error::type_er(format!("Wrong type of argument for command {}: got {:?}, expected Int", name, arg_type), coords));
                             }
                         }
                     }
@@ -388,7 +393,7 @@ impl Program {
                     Err(error) => return Some(error),
                     Ok(arg_type) => {
                         if arg_type.type_name != param_type.type_name {
-                            return Some(Error::typeEr(format!("Wrong type of argument '{}' for command {}: got {:?}, expected {:?}", param_name, name, arg_type, params[i]), coords));
+                            return Some(Error::type_er(format!("Wrong type of argument '{}' for command {}: got {:?}, expected {:?}", param_name, name, arg_type, params[i]), coords));
                         }
                     }
                 }
@@ -403,7 +408,7 @@ impl Program {
     fn type_check_set_val(&self, val: VariableCall, expr: Expression, coords: Coords) -> Result<(Type, Expression), Error> {
         let var_type = self.clone().type_check_var(&val, coords)?;
         if var_type.is_const {
-            return Err(Error::typeEr(format!("Const variable {} cannot be reassigned", val), coords));
+            return Err(Error::type_er(format!("Const variable {} cannot be reassigned", val), coords));
         }
         let expr_type = self.clone().type_check_expr(&expr)?;
         if !var_type.can_assign(&expr_type) {
@@ -414,7 +419,7 @@ impl Program {
 
     fn type_check_init(&self, new_type_def : Type, val : String, expr : Expression, coords: Coords) -> Result<(Type, Expression), Error>{
         if self.keywords.contains(&val) {
-            return Err(Error::typeEr(format!("'{}' cannot be a variable, it is a keyword", val), coords));
+            return Err(Error::type_er(format!("'{}' cannot be a variable, it is a keyword", val), coords));
         }
         if let Some(_) = self.get(&val) {
             return Err(Error::logic(format!("Variable {} is re-defined!", val), coords));
@@ -500,14 +505,14 @@ impl Program {
                         let inner_type = self.clone().type_check_expr(&*inner)?;
                         if inner_type.type_name == Primitive(Int) {Ok(Type::typ(Int))} else 
                         if inner_type.type_name == Primitive(Float) {Ok(Type::typ(Float))} else 
-                        {Err(Error::typeEr(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))}
+                        {Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))}
                     },
                     UnaryOperator::NOT => {
                         let inner_type = self.clone().type_check_expr(&*inner)?;
                         if inner_type.type_name == Primitive(Bool) {
                             Ok(Type::typ(Bool))
                         } else {
-                            Err(Error::typeEr(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
+                            Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
                         }
                     },
                     UnaryOperator::Parentheses =>  self.clone().type_check_expr(&*inner),
@@ -518,15 +523,15 @@ impl Program {
                 let rhs_type =  self.clone().type_check_expr(&*rhs)?;
                 if *op == Operator::AND || *op == Operator::OR {
                     if lhs_type.type_name != Primitive(Bool) || rhs_type.type_name != Primitive(Bool) {
-                        return Err(Error::typeEr(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
+                        return Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
                     }
                     Ok(Type::typ(Bool))
                 } else {
                     if lhs_type.type_name != Primitive(Int) && lhs_type.type_name != Primitive(Float) {
-                        return Err(Error::typeEr(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
+                        return Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
                     }
                     if rhs_type.type_name != Primitive(Int) && rhs_type.type_name!= Primitive(Float) {
-                        return Err(Error::typeEr(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
+                        return Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
                     }
                     if !is_arith(*op) {
                         return Ok(Type::typ(Bool))
@@ -549,10 +554,10 @@ impl Program {
                     return self.recursive_type_check_var(inner, depth - 1, coords);
                 }
             } else {
-                return Err(Error::typeEr(String::from("Array type is not defined"), coords));
+                return Err(Error::type_er(String::from("Array type is not defined"), coords));
             }
         }
-        Err(Error::typeEr(String::from("Expected an array type"), coords))
+        Err(Error::type_er(String::from("Expected an array type"), coords))
     }
 
     fn type_check_var(&self, var: &VariableCall, coords: Coords) -> Result<Type, Error> {
@@ -561,7 +566,7 @@ impl Program {
             VariableCall::ArrayCall(name, inds) => (name, inds.len())
         };
         if self.keywords.contains(name) {
-            return Err(Error::typeEr(format!("'{}' is a keyword, it cannot be a name of a variable", name), coords));
+            return Err(Error::type_er(format!("'{}' is a keyword, it cannot be a name of a variable", name), coords));
         }
         if let Some((tp, _)) = self.get(name) {
             if depth == 0 { 
@@ -582,7 +587,7 @@ impl Program {
             BaseValueType::Int(_) => Ok(Type::typ(Int)),
             BaseValueType::Bool(_) => Ok(Type::typ(Bool)),
             BaseValueType::Color(_, _, _) => Ok(Type::typ(Color)),
-            BaseValueType::RandomColor => Ok(Type::typ(Color)),
+            BaseValueType::RandomColor(_) => Ok(Type::typ(Color)),
             BaseValueType::Float(_) => Ok(Type::typ(Float)),
             BaseValueType::Array(arr) => {
                 let types: Result<Vec<Type>, Error> = arr.iter()
@@ -595,21 +600,21 @@ impl Program {
                 let inner_type = &types.first().unwrap().clone();
                 
                 if types.iter().any(|t| t.type_name != inner_type.type_name) {
-                    return Err(Error::typeEr(format!("Array elements must all be of type {:?}, got {:?}", inner_type, types), base.coords));
+                    return Err(Error::type_er(format!("Array elements must all be of type {:?}, got {:?}", inner_type, types), base.coords));
                 }
                 Ok(Type{type_name:Array(Box::new(Some(inner_type.clone())), arr.len()), is_const: false})
             },
             BaseValueType::FunctionCall(name,arg_list, return_type ) => {
                 match self.function_defs.get(name) {
-                    None => Err(Error::typeEr(format!("Unknown function {}", name), base.coords)),
+                    None => Err(Error::type_er(format!("Unknown function {}, got funcs: {:?}", name, self.function_defs), base.coords)),
                     Some((arg_defs, _)) => {
                         if arg_list.len() != arg_defs.len() {
-                            return Err(Error::typeEr(format!("Funcion '{}' expects {} arguments, but got {}", name, arg_defs.len(), arg_list.len()), base.coords))
+                            return Err(Error::type_er(format!("Funcion '{}' expects {} arguments, but got {}", name, arg_defs.len(), arg_list.len()), base.coords))
                         }
                         for (i, (arg_name, arg_def)) in arg_defs.iter().enumerate() {
                             let expr_type = self.type_check_expr(arg_list.get(i).unwrap())?;
                             if !arg_def.can_assign(&expr_type) {
-                                return Err(Error::typeEr(format!("Funcion '{}' expects argument '{}' of type '{}', but got '{}'", name, arg_name, arg_def.to_string(), expr_type.to_string()), base.coords));
+                                return Err(Error::type_er(format!("Funcion '{}' expects argument '{}' of type '{}', but got '{}'", name, arg_name, arg_def.to_string(), expr_type.to_string()), base.coords));
                             }
                         } 
                         Ok(return_type.clone())

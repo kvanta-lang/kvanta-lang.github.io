@@ -86,7 +86,7 @@ pub enum BaseValueType {
     Int(i32),
     Bool(bool),
     Color(u8, u8, u8),
-    RandomColor,
+    RandomColor(i32),
     Float(f32),
     Array(Vec<BaseValue>), // Array of BaseValues
     FunctionCall(String, Vec<Expression>, Type), // Function call with name and arguments
@@ -161,13 +161,13 @@ impl BaseValue {
                 if let Some(type_) = get_var_type(&name) {
                     Ok(type_.type_name)
                 } else {
-                    Err(Error::typeEr(format!("Variable type unknown: {}", name.to_string()), self.coords))
+                    Err(Error::type_er(format!("Variable type unknown: {}", name.to_string()), self.coords))
                 }
             }, 
             BaseValueType::Int(_) => Ok(Primitive(BaseType::Int)),
             BaseValueType::Bool(_) => Ok(Primitive(BaseType::Bool)),
             BaseValueType::Color(_, _, _) => Ok(Primitive(BaseType::Color)),
-            BaseValueType::RandomColor => Ok(Primitive(BaseType::Color)),
+            BaseValueType::RandomColor(_) => Ok(Primitive(BaseType::Color)),
             BaseValueType::Float(_) => Ok(Primitive(BaseType::Float)),
             BaseValueType::Array(elems) => {
                 if elems.is_empty() {
@@ -176,7 +176,7 @@ impl BaseValue {
                 let type_ = elems.first().unwrap().clone().get_type(get_var_type)?;
                 for elem in elems {
                     if elem.get_type(get_var_type)? != type_ {
-                        return Err(Error::typeEr(format!("Array type unknown"), self.coords));
+                        return Err(Error::type_er(format!("Array type unknown"), self.coords));
                     }
                 }
                 Ok(Array(Box::new(Some(Type{type_name:type_, is_const:false})), elems.len()))
@@ -310,7 +310,7 @@ impl Expression {
     pub fn get_type<F>(&self, get_var_type: &F) -> Result<TypeName, Error>
         where F: Fn(&VariableCall) -> Option<Type>
     {
-        let type_mismatch = Err(Error::typeEr(format!("Type mismatch error"), self.coords));
+        let type_mismatch = Err(Error::type_er(format!("Type mismatch error"), self.coords));
         match &self.expr_type {
             ExpressionType::Value(base_value) => base_value.get_type(get_var_type),
             ExpressionType::Unary(_, expr) => expr.get_type(get_var_type),
