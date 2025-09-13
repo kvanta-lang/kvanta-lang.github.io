@@ -6,7 +6,7 @@
 import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import {barf, dracula} from 'thememirror';
 //import { autocompletion } from "@codemirror/autocomplete";
-import {EditorState, RangeSetBuilder} from "@codemirror/state"
+import {EditorState, RangeSetBuilder, EditorSelection} from "@codemirror/state"
 import { HighlightStyle, tags as t } from "@codemirror/highlight";
 
 import {
@@ -17,7 +17,7 @@ import {
 } from "@codemirror/view"
 import {
   defaultHighlightStyle, syntaxHighlighting, indentOnInput,
-  bracketMatching, foldGutter, foldKeymap
+  bracketMatching, foldGutter, foldKeymap, indentUnit
 } from "@codemirror/language"
 import {
   defaultKeymap, history, historyKeymap
@@ -44,13 +44,52 @@ const runBtn = document.getElementById("runBtn");
 let runtime = undefined;
 let isRunning = false;
 
+const fourSpaceIndent = indentUnit.of("    "); // 4 spaces
+
+const insertFourSpaces = keymap.of([{
+  key: "Tab",
+  run: ({ state, dispatch }) => {
+    dispatch(
+      state.replaceSelection("    ") // 4 spaces
+    );
+    return true; // handled
+  }
+}]);
+
+const newlineSameIndent = keymap.of([{
+  key: "Enter",
+  run: (view) => {
+    const { state } = view;
+    const tr = state.changeByRange(range => {
+      const line = state.doc.lineAt(range.head);
+      let leadingWS = (line.text.match(/^[ \t]*/) || [""])[0]; // copy tabs/spaces exactly
+      let extra = "";
+      if (line.text.trimEnd().endsWith("{")) {
+        // increase indent after {
+        leadingWS += "    "; // add 4 spaces
+      }
+      if (line.text.trimEnd().endsWith("{}")) {
+        // increase indent after {
+        leadingWS += "    "
+        extra += "\n"; // add 4 spaces
+      }
+      const insert = "\n" + leadingWS + extra;
+      return {
+        changes: { from: range.from, to: range.to, insert },
+        range: EditorSelection.cursor(range.from + leadingWS.length + 1)
+      };
+    });
+    view.dispatch(tr, { userEvent: "input" });
+    return true;
+  }
+}]);
+
 function showError(editor, err) {
-  console.log("Showing error in editor");
   let diagnostics = [];
   const from_line = editor.state.doc.line(err.start_row);
-  const from = Math.min(from_line.to, from_line.from + err.start_column - 1);
+  const from = Math.min(from_line.to - 1, from_line.from + err.start_column - 1);
   const to_line = editor.state.doc.line(err.end_row);
-  const to = Math.min(to_line.to, to_line.from + err.end_column - 1); 
+  const to = Math.min(to_line.to, to_line.from + err.end_column); 
   diagnostics.push({
     from: from,
     to: to, // adjust for token length if needed
@@ -65,9 +104,10 @@ function showOk(editor) {
   editor.dispatch(setDiagnostics(editor.state, []));
 }
 
-// starter code
-const startCode = 
-`func mouse(int z, int y) {
+const STORAGE_KEY = "quanta-editor-code";
+
+const savedCode = localStorage.getItem(STORAGE_KEY);
+const startCode = savedCode || `func mouse(int z, int y) {
     setFigureColor(Color::Red);
     rectangle(z, y, z+100, y+100);
     x = x + 10;
@@ -127,12 +167,9 @@ const onTyping = EditorView.updateListener.of(update => {
     // schedule a new one
     typingTimer = setTimeout(() => {
       const code = update.state.doc.toString();
-      console.log("User stopped typing. New code:", code.length);
 
       tryCompile(update, code);
-
-      // 👉 here you can call your compiler, show errors, etc.
-      // compileAndShowErrors(code, update.view);
+      localStorage.setItem(STORAGE_KEY, editor.state.doc.toString());
 
     }, 1000); // 1000ms = 1 second pause
   }
@@ -180,6 +217,9 @@ const editor = new EditorView({
     // Highlight text that matches the selected text
     //highlightSelectionMatches(),
     onTyping,
+    insertFourSpaces,
+    fourSpaceIndent,
+    newlineSameIndent,
     keymap.of([
       // Closed-brackets aware backspace
       ...closeBracketsKeymap,
