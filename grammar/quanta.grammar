@@ -53,7 +53,7 @@ BinaryExpression {
 }
 
 @tokens {
-  Name { @asciiLetter+ }
+  Name { @asciiLetter $[a-zA-Z0-9_]* }
   //FuncName {@asciiLetter+}
   Number { @digit+ }
   Float {@digit+ "." @digit+}

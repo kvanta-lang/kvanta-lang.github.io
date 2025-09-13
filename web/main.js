@@ -6,13 +6,14 @@
 import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import {barf, dracula} from 'thememirror';
 //import { autocompletion } from "@codemirror/autocomplete";
-import {EditorState} from "@codemirror/state"
+import {EditorState, RangeSetBuilder} from "@codemirror/state"
 import { HighlightStyle, tags as t } from "@codemirror/highlight";
 
 import {
   EditorView, keymap, highlightSpecialChars, drawSelection,
   highlightActiveLine, dropCursor, rectangularSelection,
-  crosshairCursor, lineNumbers, highlightActiveLineGutter
+  crosshairCursor, lineNumbers, highlightActiveLineGutter,
+  Decoration, ViewPlugin
 } from "@codemirror/view"
 import {
   defaultHighlightStyle, syntaxHighlighting, indentOnInput,
@@ -25,6 +26,7 @@ import {
   autocompletion, closeBrackets,
   closeBracketsKeymap, completionKeymap
 } from "@codemirror/autocomplete"
+import { linter, setDiagnostics } from "@codemirror/lint";
 // Language support (your Lezer parser compiled to quanta.js)
 import { quanta, quantaSyntax, quantaLanguageSupport } from "./quanta-support.ts";
 
@@ -41,6 +43,22 @@ const runBtn = document.getElementById("runBtn");
 
 let runtime = undefined;
 let isRunning = false;
+
+function showError(editor, err) {
+  let diagnostics = [];
+  diagnostics.push({
+    from: editor.state.doc.line(err.start_row).from + err.start_column - 1,
+    to: editor.state.doc.line(err.end_row).from + err.end_column, // adjust for token length if needed
+    severity: "error",
+    message: err.get_error_message()
+  });
+
+  editor.dispatch(setDiagnostics(editor.state, diagnostics));
+}
+
+function showOk(editor) {
+  editor.dispatch(setDiagnostics(editor.state, []));
+}
 
 // starter code
 const startCode = 
@@ -201,11 +219,14 @@ function doRun() {
       let compiler = Compiler.new();
       const compilation_result = await compiler.compile_code(src);   // Rust returns drawing commands (string)
       if (compilation_result.error_code != 0) {
-        alert(compilation_result.get_error_message() + " at " 
+        showError(editor, compilation_result);
+        console.log(compilation_result.get_error_message() + " at " 
             + compilation_result.start_row + ":" + compilation_result.start_column
             + " - " + compilation_result.end_row + ":" + compilation_result.end_column);
         runBtn.disabled = false;
         return;
+      } else {
+        showOk(editor);
       }
       console.log("Compiling done");
       setRunningUI();
