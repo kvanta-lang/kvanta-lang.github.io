@@ -4,7 +4,7 @@
 //import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 //import { indentOnInput } from "@codemirror/language";
 import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
-import {barf} from 'thememirror';
+import {barf, dracula} from 'thememirror';
 //import { autocompletion } from "@codemirror/autocomplete";
 import {EditorState} from "@codemirror/state"
 import { HighlightStyle, tags as t } from "@codemirror/highlight";
@@ -34,7 +34,7 @@ import { drawScript, clearCanvas, checkIsCancelled, cancelNow } from "./canvas-r
 
 // WASM glue (wasm-pack output); adjust crate name/path
 import initWasm, { Compiler } from "../quanta-lang/pkg/quanta_lang.js"; 
-import { rustHighlighting } from "../grammar/highlight.js";
+//import { rustHighlighting } from "../grammar/highlight.js";
 
 const runBtn = document.getElementById("runBtn");
 
@@ -114,7 +114,7 @@ const editor = new EditorView({
      highlightActiveLine(),
     // // Style the gutter for current line specially
      highlightActiveLineGutter(),
-    oneDark,
+    dracula,
     quantaLanguageSupport,
     //keymap.of([{key: "Tab", run: acceptCompletion}]),
     // Highlight text that matches the selected text
