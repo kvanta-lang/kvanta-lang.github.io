@@ -94,7 +94,6 @@ export function drawScript(script, should_draw_frame=false){
   }
   ctx.restore();
   if (!isAnimation || should_draw_frame) {
-    console.log(!isAnimation + " or " + should_draw_frame)
     drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     drawCtx.drawImage(bufferCanvas, 0, 0);
   }

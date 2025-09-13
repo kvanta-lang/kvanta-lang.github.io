@@ -45,10 +45,15 @@ let runtime = undefined;
 let isRunning = false;
 
 function showError(editor, err) {
+  console.log("Showing error in editor");
   let diagnostics = [];
+  const from_line = editor.state.doc.line(err.start_row);
+  const from = Math.min(from_line.to, from_line.from + err.start_column - 1);
+  const to_line = editor.state.doc.line(err.end_row);
+  const to = Math.min(to_line.to, to_line.from + err.end_column - 1); 
   diagnostics.push({
-    from: editor.state.doc.line(err.start_row).from + err.start_column - 1,
-    to: editor.state.doc.line(err.end_row).from + err.end_column, // adjust for token length if needed
+    from: from,
+    to: to, // adjust for token length if needed
     severity: "error",
     message: err.get_error_message()
   });
@@ -95,7 +100,43 @@ func main() {
 
 `;
 
+async function tryCompile(editor, src) {
+  await initWasm();
+  let idle_compiler = Compiler.new();
+  const compilation_result = await idle_compiler.compile_code(src);   // Rust returns drawing commands (string)
+   if (compilation_result.error_code != 0) {
+    showError(editor.view, compilation_result);
+    console.log(compilation_result.get_error_message() + " at " 
+        + compilation_result.start_row + ":" + compilation_result.start_column
+        + " - " + compilation_result.end_row + ":" + compilation_result.end_column);
+  //   runBtn.disabled = false;
+  //   return;
+   } else {
+    console.log("OK!");
+  //   showOk(editor);
+   }
+}
 
+let typingTimer = null;
+
+const onTyping = EditorView.updateListener.of(update => { 
+  if (update.docChanged) {
+    update.view.dispatch(setDiagnostics(update.state, []));
+    clearTimeout(typingTimer);
+
+    // schedule a new one
+    typingTimer = setTimeout(() => {
+      const code = update.state.doc.toString();
+      console.log("User stopped typing. New code:", code.length);
+
+      tryCompile(update, code);
+
+      // 👉 here you can call your compiler, show errors, etc.
+      // compileAndShowErrors(code, update.view);
+
+    }, 1000); // 1000ms = 1 second pause
+  }
+});
 
 const editor = new EditorView({
   state: EditorState.create({
@@ -138,6 +179,7 @@ const editor = new EditorView({
     //keymap.of([{key: "Tab", run: acceptCompletion}]),
     // Highlight text that matches the selected text
     //highlightSelectionMatches(),
+    onTyping,
     keymap.of([
       // Closed-brackets aware backspace
       ...closeBracketsKeymap,
@@ -160,12 +202,16 @@ const editor = new EditorView({
     //   history(),
     //   autocompletion(),
     //   quanta(),
-    //   EditorView.updateListener.of(v => { /* hooks later */ }),
+    //   
     //   oneDark
     // ]
   }),
   parent: document.getElementById("editor")
 });
+
+function clearErrors() {
+  editor.dispatch(setDiagnostics(editor.state, []));
+}
 
 
 
@@ -265,6 +311,7 @@ function setRunningUI() {
   runBtn.textContent = 'Stop';
   runBtn.dataset.state = 'stop';
   runBtn.disabled = false;
+  canvas.focus();
 }
 
 function setIdleUI() {
@@ -286,7 +333,6 @@ window.addEventListener('keydown', (e) => {
   if (!runtime) return;
   if (document.activeElement !== canvas) return;
   try {
-    console.log("Got key " + e.key);
     executeKey(e.key); // pass string like 'a', 'Enter', etc.
   } catch (err) {
     console.warn('Keyboard runtime error:', err);
@@ -316,11 +362,9 @@ window.addEventListener('mouseup', () => {
 });
 
 document.getElementById("canvas").addEventListener('click', (e) => {
-  console.log("Got click!");
   if (!runtime) return;
 
   const rect = canvas.getBoundingClientRect();
-  console.log(e.clientX, rect.left, rect.width);
   const x = (e.clientX - rect.left) / rect.width * 1000;
   const y = (e.clientY - rect.top) /rect.height * 1000;
 
@@ -328,7 +372,6 @@ document.getElementById("canvas").addEventListener('click', (e) => {
     const dpr = window.devicePixelRatio || 1;
 
   // Match canvas internal size to actual visible size * device pixel ratio
-    console.log("Mouse on x: " + x + " Y: " + y);
     executeMouse(x, y);
   } catch (err) {
     console.warn('Mouse runtime error:', err);
