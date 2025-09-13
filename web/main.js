@@ -62,6 +62,13 @@ const newlineSameIndent = keymap.of([{
     const { state } = view;
     const tr = state.changeByRange(range => {
       const line = state.doc.lineAt(range.head);
+      if (range.head !== line.to) {
+        // fall back to default newline
+        return {
+          changes: { from: range.from, to: range.to, insert: "\n" },
+          range: EditorSelection.cursor(range.from + 1)
+        };
+      }
       let leadingWS = (line.text.match(/^[ \t]*/) || [""])[0]; // copy tabs/spaces exactly
       let extra = "";
       if (line.text.trimEnd().endsWith("{")) {
