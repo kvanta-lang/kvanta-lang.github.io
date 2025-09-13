@@ -26,7 +26,7 @@ import {
   closeBracketsKeymap, completionKeymap
 } from "@codemirror/autocomplete"
 // Language support (your Lezer parser compiled to quanta.js)
-import { quanta } from "./quanta-support.ts";
+import { quanta, quantaSyntax, quantaLanguageSupport } from "./quanta-support.ts";
 
 
 // Canvas runtime (drawScript + utilities)
@@ -34,6 +34,7 @@ import { drawScript, clearCanvas, checkIsCancelled, cancelNow } from "./canvas-r
 
 // WASM glue (wasm-pack output); adjust crate name/path
 import initWasm, { Compiler } from "../quanta-lang/pkg/quanta_lang.js"; 
+import { rustHighlighting } from "../grammar/highlight.js";
 
 const runBtn = document.getElementById("runBtn");
 
@@ -84,38 +85,37 @@ const editor = new EditorView({
     // A line number gutter
     lineNumbers(),
     // A gutter with code folding markers
-    foldGutter(),
-    // Replace non-printable characters with placeholders
-    highlightSpecialChars(),
-    // The undo history
-    history(),
-    // Replace native cursor/selection with our own
-    drawSelection(),
-    // Show a drop cursor when dragging over the editor
-    dropCursor(),
-    // Allow multiple cursors/selections
-    EditorState.allowMultipleSelections.of(true),
-    // Re-indent lines when typing specific input
-    indentOnInput(),
-    // Highlight syntax with a default style
-    syntaxHighlighting(defaultHighlightStyle),
-    // Highlight matching brackets near cursor
-    bracketMatching(),
-    // Automatically close brackets
-    closeBrackets(),
-    // Load the autocompletion system
-    autocompletion(),
-    // Allow alt-drag to select rectangular regions
-    rectangularSelection(),
-    // Change the cursor to a crosshair when holding alt
-    crosshairCursor(),
-    // Style the current line specially
-    highlightActiveLine(),
-    // Style the gutter for current line specially
-    highlightActiveLineGutter(),
-    barf,
-    //quantaHighlightStyle,
-    quanta(),
+     foldGutter(),
+    // // Replace non-printable characters with placeholders
+     highlightSpecialChars(),
+    // // The undo history
+     history(),
+    // // Replace native cursor/selection with our own
+     drawSelection(),
+    // // Show a drop cursor when dragging over the editor
+    // dropCursor(),
+    // // Allow multiple cursors/selections
+    // EditorState.allowMultipleSelections.of(true),
+    // // Re-indent lines when typing specific input
+     indentOnInput(),
+    // // Highlight syntax with a default style
+    //syntaxHighlighting(rustHighlighting),
+    // // Highlight matching brackets near cursor
+     bracketMatching(),
+    // // Automatically close brackets
+     closeBrackets(),
+    // // Load the autocompletion system
+     autocompletion(),
+    // // Allow alt-drag to select rectangular regions
+    // rectangularSelection(),
+    // // Change the cursor to a crosshair when holding alt
+    // crosshairCursor(),
+    // // Style the current line specially
+     highlightActiveLine(),
+    // // Style the gutter for current line specially
+     highlightActiveLineGutter(),
+    oneDark,
+    quantaLanguageSupport,
     //keymap.of([{key: "Tab", run: acceptCompletion}]),
     // Highlight text that matches the selected text
     //highlightSelectionMatches(),
