@@ -12,13 +12,23 @@
   or @left
 }
 
-expression { Function | FunctionCall | IfExpression | Name | Number | Float| BinaryExpression }
+expression { Function | GlobalBlock | FunctionCall | IfExpression | ForExpression | WhileExpression | ReturnExpression | Name | Number | Float | Color | Key | BinaryExpression }
+
+GlobalBlock { Global Block }
 
 Function { Func FuncName "(" Args? ")" Block}
 
 FunctionCall { FuncName "(" Params? ")" }
 
-IfExpression { If "(" expression ")" Block}
+IfExpression { If "(" expression ")" Block ElseExpression?}
+
+ElseExpression { Else Block }
+
+ForExpression{ For expression In expression Block}
+
+WhileExpression { While "(" expression ")" Block }
+
+ReturnExpression { Return expression }
 
 Params{ expression ("," expression)*}
 
@@ -51,10 +61,14 @@ BinaryExpression {
   Func { "func" }
   If { "if" }
   For { "for" }
+  In {"in"}
   While { "while" }
   Else { "else" }
   Return { "return" }
-  @precedence {Type, Func, If, For, While, Else, Return, Name, Float, Number}
+  Global { "global" }
+  Color {"Color"}
+  Key{"Key"}
+  @precedence {Type, Func, If, In, For, While, Else, Return, Global, Color, Key, Name, Float, Number}
 }
 
 @external propSource quantaHighlight from "./highlight"

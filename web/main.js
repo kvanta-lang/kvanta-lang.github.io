@@ -28,6 +28,7 @@ import {
 // Language support (your Lezer parser compiled to quanta.js)
 import { quanta, quantaSyntax, quantaLanguageSupport } from "./quanta-support.ts";
 
+import { quantaTheme } from "./custom-theme";
 
 // Canvas runtime (drawScript + utilities)
 import { drawScript, clearCanvas, checkIsCancelled, cancelNow } from "./canvas-runtime.js";
@@ -114,7 +115,7 @@ const editor = new EditorView({
      highlightActiveLine(),
     // // Style the gutter for current line specially
      highlightActiveLineGutter(),
-    dracula,
+    quantaTheme,
     quantaLanguageSupport,
     //keymap.of([{key: "Tab", run: acceptCompletion}]),
     // Highlight text that matches the selected text
