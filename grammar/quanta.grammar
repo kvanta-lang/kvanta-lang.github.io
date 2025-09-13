@@ -1,0 +1,74 @@
+@top Program { expression* }
+
+@precedence {
+  mult @left
+  add @left
+  shift @left
+  bitAnd @left
+  bitXor @left
+  bitOr @left
+  compare @left
+  and @left
+  or @left
+}
+
+expression { Function | GlobalBlock | FunctionCall | IfExpression | ForExpression | WhileExpression | ReturnExpression | Name | Number | Float | Color | Key | BinaryExpression }
+
+GlobalBlock { Global Block }
+
+Function { Func FuncName "(" Args? ")" Block}
+
+FunctionCall { FuncName "(" Params? ")" }
+
+IfExpression { If "(" expression ")" Block ElseExpression?}
+
+ElseExpression { Else Block }
+
+ForExpression{ For expression In expression Block}
+
+WhileExpression { While "(" expression ")" Block }
+
+ReturnExpression { Return expression }
+
+Params{ expression ("," expression)*}
+
+FuncName{Name}
+
+Args { Arg ("," Arg)* }
+
+Arg {Type Name}
+
+Block { "{" expression* "}" }
+
+BinaryExpression {
+  expression !add ArithOp { "+" | "-" } expression |
+  expression !mult ArithOp { "*" | "/" | "%" } expression |
+  expression !shift BitOp { "<<" | ">>" } expression |
+  expression !bitAnd BitOp { "&" } expression |
+  expression !bitXor BitOp { "^" } expression |
+  expression !bitOr BitOp { "|" } expression |
+  expression !compare CompareOp {">" | ">=" | "<" | "<=" | "==" | "!=" } expression |
+  expression !and LogicOp { "&&" } expression |
+  expression !or LogicOp { "||" } expression
+}
+
+@tokens {
+  Name { @asciiLetter+ }
+  //FuncName {@asciiLetter+}
+  Number { @digit+ }
+  Float {@digit+ "." @digit+}
+  Type {"int" | "bool" | "color" | "float"}
+  Func { "func" }
+  If { "if" }
+  For { "for" }
+  In {"in"}
+  While { "while" }
+  Else { "else" }
+  Return { "return" }
+  Global { "global" }
+  Color {"Color"}
+  Key{"Key"}
+  @precedence {Type, Func, If, In, For, While, Else, Return, Global, Color, Key, Name, Float, Number}
+}
+
+@external propSource quantaHighlight from "./highlight"
