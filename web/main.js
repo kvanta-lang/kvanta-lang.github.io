@@ -62,23 +62,21 @@ const newlineSameIndent = keymap.of([{
     const { state } = view;
     const tr = state.changeByRange(range => {
       const line = state.doc.lineAt(range.head);
-      if (range.head !== line.to) {
-        // fall back to default newline
-        return {
-          changes: { from: range.from, to: range.to, insert: "\n" },
-          range: EditorSelection.cursor(range.from + 1)
-        };
-      }
       let leadingWS = (line.text.match(/^[ \t]*/) || [""])[0]; // copy tabs/spaces exactly
       let extra = "";
       if (line.text.trimEnd().endsWith("{")) {
-        // increase indent after {
-        leadingWS += "    "; // add 4 spaces
+          if (range.head === line.to) {
+          // increase indent after {
+          leadingWS += "    "; // add 4 spaces
+          
+        }
       }
       if (line.text.trimEnd().endsWith("{}")) {
+        if (range.head === line.to - 1) {        
         // increase indent after {
-        extra += "\n" + leadingWS; // add 4 spaces
-        leadingWS += "    "
+          extra += "\n" + leadingWS; // add 4 spaces
+          leadingWS += "    "
+        }
       }
       const insert = "\n" + leadingWS + extra;
       return {
