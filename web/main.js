@@ -70,8 +70,8 @@ const newlineSameIndent = keymap.of([{
       }
       if (line.text.trimEnd().endsWith("{}")) {
         // increase indent after {
+        extra += "\n" + leadingWS; // add 4 spaces
         leadingWS += "    "
-        extra += "\n"; // add 4 spaces
       }
       const insert = "\n" + leadingWS + extra;
       return {
