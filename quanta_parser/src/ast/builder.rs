@@ -28,6 +28,14 @@ pub fn new() -> AstBuilder
 
 pub fn build_ast_from_doc(&mut self, docs: Pairs<Rule>) -> Result<AstProgram, Error> {
     self.function_signatures.insert(String::from("rgb"), (vec![Type::typ(BaseType::Int), Type::typ(BaseType::Int), Type::typ(BaseType::Int)], Some(Type::typ(BaseType::Color))));
+    self.function_signatures.insert(String::from("round"), (vec![Type::typ(BaseType::Float)], Some(Type::typ(BaseType::Int))));
+    self.function_signatures.insert(String::from("decimal"), (vec![Type::typ(BaseType::Int)], Some(Type::typ(BaseType::Float))));
+    self.function_signatures.insert(String::from("ceil"), (vec![Type::typ(BaseType::Float)], Some(Type::typ(BaseType::Int))));
+    self.function_signatures.insert(String::from("floor"), (vec![Type::typ(BaseType::Float)], Some(Type::typ(BaseType::Int))));
+    self.function_signatures.insert(String::from("abs"), (vec![Type::typ(BaseType::Int)], Some(Type::typ(BaseType::Int))));
+    //self.function_signatures.insert(String::from("abs"), (vec![Type::typ(BaseType::Float)], Some(Type::typ(BaseType::Float))));
+    self.function_signatures.insert(String::from("sqrt"), (vec![Type::typ(BaseType::Float)], Some(Type::typ(BaseType::Float))));
+    self.function_signatures.insert(String::from("random"), (vec![Type::typ(BaseType::Int), Type::typ(BaseType::Int)], Some(Type::typ(BaseType::Int))));
     assert!(docs.len() == 1);
     let doc = docs.into_iter().next().unwrap();
     assert!(doc.as_rule() == Rule::document);
@@ -434,8 +442,8 @@ fn build_ast_from_for(&self, command: Pairs<Rule>, coords: Coords) -> Result<Ast
     let mut range = iter.next().unwrap().into_inner().into_iter();
     Ok(AstNode{statement: AstStatement::For { 
         val:  self.build_ast_from_ident(name).unwrap(), 
-        from: self.build_ast_from_value(range.next().unwrap())?, 
-        to: self.build_ast_from_value(range.next().unwrap())?,
+        from: self.build_ast_from_expression(range.next().unwrap())?, 
+        to: self.build_ast_from_expression(range.next().unwrap())?,
         block: self.build_ast_from_block(iter.next().unwrap().into_inner().into_iter().next().unwrap().into_inner())?
     }, coords})
 }

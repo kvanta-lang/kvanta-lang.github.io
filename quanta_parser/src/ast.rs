@@ -132,7 +132,7 @@ impl Type {
                 return false;
             }
         }  
-        return true;
+        return self.type_name == t.type_name;
     }
 }
 
@@ -294,7 +294,7 @@ pub enum AstStatement {
     Command { name: String, args: Vec<Expression> },
     Init    { typ: Type, val : String, expr: Expression },
     SetVal { val: VariableCall, expr: Expression },
-    For     { val: String, from: BaseValue, to: BaseValue, block: AstBlock },
+    For     { val: String, from: Expression, to: Expression, block: AstBlock },
     While   { clause: Expression, block: AstBlock},
     If      { clause: Expression, block: AstBlock, else_block: Option<AstBlock>},
     Return  { expr: Expression },

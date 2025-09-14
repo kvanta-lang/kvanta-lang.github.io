@@ -120,6 +120,7 @@ export function drawScript(script, should_draw_frame=false){
         case 'bg': case 'background': { const color = tok[1] || '#0a0f1f'; clearCanvas(color); break; }
         case 'animate': {isAnimation = true; console.log("GOT ANIMATION HERE! " + isAnimation);}
         case 'clear': {clearCanvas(); }
+        case 'error': {alert("Error: " + tok.slice(1).join(' ')); }
         default: /* ignore unknown */ break;
       }
     } catch (e) { console.warn('Error:', line, e); }

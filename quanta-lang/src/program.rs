@@ -54,6 +54,11 @@ fn int_type() -> Type
     Type { type_name: Primitive(Int), is_const: false }
 }
 
+fn float_type() -> Type
+{
+    Type {type_name: Primitive(Float), is_const: false}
+}
+
 fn color_type() -> Type
 {
     Type {type_name: Primitive(Color), is_const: false}
@@ -104,13 +109,33 @@ pub fn create_program(ast: AstProgram) -> Program {
         (String::from("frame"), (vec![], None)),
         (String::from("clear"), (vec![], None)),
         (String::from("Color::Random"), (vec![], Some(color_type()))),
+        (String::from("round"), (vec![
+            (String::from("value"), float_type())
+        ], Some(int_type()))),
+        (String::from("decimal"), (vec![
+            (String::from("value"), int_type())
+        ], Some(float_type()))),
+        (String::from("ceil"), (vec![
+            (String::from("value"), float_type())
+        ], Some(int_type()))),
+        (String::from("floor"), (vec![
+            (String::from("value"), float_type())
+        ], Some(int_type()))),
+        (String::from("abs"), (vec![
+            (String::from("value"), int_type())
+        ], Some(int_type()))),
+        (String::from("sqrt"), (vec![
+            (String::from("value"), float_type())
+        ], Some(float_type()))),
+        (String::from("random"), (vec![(String::from("lower_bound"), int_type()), (String::from("upper_bound"), int_type())], Some(int_type()))),
         (String::from("rgb"), (vec![
-            (String::from("r"), int_type()),
-            (String::from("g"), int_type()),
-            (String::from("b"), int_type())
+            (String::from("red"), int_type()),
+            (String::from("green"), int_type()),
+            (String::from("blue"), int_type())
         ], Some(color_type()))),
     ]), keywords: HashSet::from(["circle", "line", "rectangle", 
                     "setLineColor", "setFigureColor", "setLineWidth", "polygon", "arc", "sleep", "animate", "frame", "clear", "rgb",
+                    "round", "decimal", "ceil", "floor", "abs", "sqrt", "random",
                     "for", "while", "global", "func", "if", "else",
                     "int", "bool", "color", "float", "array", "Color", "true", "false"
     ].map(|x| String::from(x)))}
@@ -471,15 +496,17 @@ impl Program {
         
     }
 
-    fn type_check_for(&self, val : String, from : BaseValue, to : BaseValue, block : AstBlock, coords: Coords) -> Result<ReturnType, Error> {
-        let t = self.clone().type_check_baseval(&from)?;
-        let f = self.clone().type_check_baseval(&to)?;
-        if t != f || t.type_name != Primitive(Int) {
+    fn type_check_for(&self, val : String, from : Expression, to : Expression, block : AstBlock, _: Coords) -> Result<ReturnType, Error> {
+        let f = self.clone().type_check_expr(&from)?;
+        let t = self.clone().type_check_expr(&to)?;
+        if f.type_name != Primitive(Int) {
             return Err(Error::logic(format!("For loop range can only be integer values"), from.coords))  
         }
+        if t.type_name != Primitive(Int) {
+            return Err(Error::logic(format!("For loop range can only be integer values"), to.coords))  
+        }
         let mut for_prog = self.create_subprogram(Some(block));
-        for_prog.scope.variables.insert(val, (Type{type_name:Primitive(Int), is_const:false}, 
-            Expression{expr_type: ExpressionType::Value(from), coords}));
+        for_prog.scope.variables.insert(val, (Type{type_name:Primitive(Int), is_const:false}, from));
         for_prog.type_check()
     }
 
@@ -611,7 +638,7 @@ impl Program {
                         if arg_list.len() != arg_defs.len() {
                             return Err(Error::type_er(format!("Funcion '{}' expects {} arguments, but got {}", name, arg_defs.len(), arg_list.len()), base.coords))
                         }
-                        for (i, (arg_name, arg_def)) in arg_defs.iter().enumerate() {
+                        for (i, (arg_name, argfunction_defs_def)) in arg_defs.iter().enumerate() {
                             let expr_type = self.type_check_expr(arg_list.get(i).unwrap())?;
                             if !arg_def.can_assign(&expr_type) {
                                 return Err(Error::type_er(format!("Funcion '{}' expects argument '{}' of type '{}', but got '{}'", name, arg_name, arg_def.to_string(), expr_type.to_string()), base.coords));

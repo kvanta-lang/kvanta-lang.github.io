@@ -7,6 +7,7 @@ use crate::utils::canvas::Canvas;
 //use js_sys::Math;
 use std::pin::Pin;
 use std::future::Future;
+use rand::Rng;
 
 //use std::{thread, time::Duration};
 
@@ -130,6 +131,11 @@ fn flt(i: f32, coords:Coords) -> BaseValue {
 
 fn bol(i: bool, coords:Coords) -> BaseValue {
     BaseValue{ val:BaseValueType::Bool(i), coords} 
+}
+
+fn get_random() -> f64 {
+    let mut rng = rand::thread_rng();
+    rng.gen()
 }
 
 impl Execution {
@@ -323,15 +329,6 @@ impl Execution {
                     *inner = color_to_str(r, g, b);
                     Ok(None)
                 }
-                else if let BaseValueType::RandomColor(n) = &vals[0].val {
-                    // let r = (255.0 * Math::random()) as u8;
-                    // let g = (255.0 * Math::random()) as u8;
-                    // let b = (255.0 * Math::random()) as u8;
-                    let mut inner  = self.line_color.lock().unwrap();
-                    // *inner = color_to_str(&r, &g, &b);
-                    *inner = format!("RandomColor{}", n);
-                    Ok(None)
-                }
                 else {
                     Err(Error::runtime(format!("Incorrect arguments for setLineColor function: expected a color, got {:?}!", &vals[0]), coords))
                 }
@@ -340,15 +337,6 @@ impl Execution {
                 if let BaseValueType::Color(r,g,b) = &vals[0].val {
                     let mut inner  = self.figure_color.lock().unwrap();
                     *inner = color_to_str(r, g, b);
-                    Ok(None)
-                }
-                else if let BaseValueType::RandomColor(n) = &vals[0].val {
-                    // let r = (255.0 * Math::random()) as u8;
-                    // let g = (255.0 * Math::random()) as u8;
-                    // let b = (255.0 * Math::random()) as u8;
-                    let mut inner  = self.figure_color.lock().unwrap();
-                    // *inner = color_to_str(&r, &g, &b);
-                    *inner = format!("RandomColor{}", n);
                     Ok(None)
                 }
                 else {
@@ -398,10 +386,47 @@ impl Execution {
                 Ok(Some(BaseValue{val: BaseValueType::Color(r as u8, g as u8, b as u8), coords}))
             },
             "Color::Random" => {
-                let mut rc = self.random_color.lock().unwrap();
-                *rc += 1;
-                Ok(Some(BaseValue{val: BaseValueType::RandomColor(*rc), coords}))
+                let r = (get_random() * 255.0) as u8;
+                let g = (get_random() * 255.0) as u8;
+                let b = (get_random() * 255.0) as u8;
+                Ok(Some(BaseValue{val: BaseValueType::Color(r,g,b), coords}))
             },
+            "round" => {
+                let num = expect_arg!("round", vals, 0, Float(v) => *v);
+                Ok(Some(int(num.round() as i32, coords)))
+            },
+            "floor" => {
+                let num = expect_arg!("floor", vals, 0, Float(v) => *v);
+                Ok(Some(int(num.floor() as i32, coords)))
+            },
+            "ceil" => {
+                let num = expect_arg!("ceil", vals, 0, Float(v) => *v);
+                Ok(Some(int(num.ceil() as i32, coords)))
+            },
+            "sqrt" => {
+                let num = expect_arg!("sqrt", vals, 0, Float(v) => *v);
+                if num < 0.0 {
+                    return Err(Error::runtime(String::from("Cannot calculate square root of a negative number"), coords));
+                }
+                Ok(Some(flt(num.sqrt(), coords)))
+            },
+            "abs" => {
+                let num = expect_arg!("abs", vals, 0, Float(v) => *v);
+                Ok(Some(flt(num.abs(), coords)))
+            },
+            "decimal" => {
+                let num = expect_arg!("decimal", vals, 0, Int(v) => *v);
+                Ok(Some(flt(num as f32, coords)))
+            },
+            "random" => {
+                let mut lower_bound = expect_arg!("random", vals, 0, Int(v) => *v);
+                let mut upper_bound = expect_arg!("random", vals, 1, Int(v) => *v);
+                if lower_bound >= upper_bound {
+                    std::mem::swap(&mut lower_bound, &mut upper_bound);
+                }
+                let random_value = (get_random() * ((upper_bound - lower_bound) as f64) + (lower_bound as f64)) as i32;
+                Ok(Some(int(random_value, coords)))
+            }
             name => {
                 if self.functions.contains_key(name) {
                     let (params, _, body) = self.functions.get(name).unwrap();
@@ -552,8 +577,8 @@ impl Execution {
                         }
                     },
                     AstStatement::For { val, from, to, block } => {
-                        if let BaseValueType::Int(f) = from.val {
-                            if let BaseValueType::Int(t) = to.val {
+                        if let BaseValueType::Int(f) = self.calculate_expression(from).await?.val {
+                            if let BaseValueType::Int(t) = self.calculate_expression(to).await?.val {
                                 if f <= t {
                                     for cycle in f..=t {
                                     if let Some(return_value) = self.execute_for(val.clone(), cycle, block.clone(), line.coords).await?{
