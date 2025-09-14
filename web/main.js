@@ -6,7 +6,7 @@
 import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import {barf, dracula} from 'thememirror';
 //import { autocompletion } from "@codemirror/autocomplete";
-import {EditorState, RangeSetBuilder, EditorSelection} from "@codemirror/state"
+import {EditorState, RangeSetBuilder, EditorSelection, Compartment} from "@codemirror/state"
 import { HighlightStyle, tags as t } from "@codemirror/highlight";
 
 import {
@@ -55,6 +55,8 @@ const insertFourSpaces = keymap.of([{
     return true; // handled
   }
 }]);
+
+const fontSizeCompartment = new Compartment();
 
 const newlineSameIndent = keymap.of([{
   key: "Enter",
@@ -180,6 +182,47 @@ const onTyping = EditorView.updateListener.of(update => {
   }
 });
 
+// Create a theme factory for font size
+function fontSizeTheme(sizePx) {
+  return EditorView.theme({
+    ".cm-content": { fontSize: sizePx + "px" },
+    ".cm-line":    { fontSize: sizePx + "px" },
+    ".cm-gutters": { fontSize: sizePx + "px" }
+  });
+}
+
+// Keep track of current size
+let currentFontSize = 18;
+let fontSizeExt = fontSizeTheme(currentFontSize);
+
+// Key bindings to adjust font size
+const fontSizeKeys = keymap.of([
+  {
+    key: "Mod-=",
+    run: (view) => {
+      console.log("BIGGER");
+      currentFontSize += 1;
+      view.dispatch({
+        effects: fontSizeCompartment.reconfigure(fontSizeTheme(currentFontSize))
+      });
+      console.log("SIZE NOW: " + currentFontSize);
+      return true;
+    }
+  },
+  {
+    key: "Mod--",
+    run: (view) => {
+      console.log("SMALLER");
+      currentFontSize = Math.max(8, currentFontSize - 1);
+      view.dispatch({
+        effects: fontSizeCompartment.reconfigure(fontSizeTheme(currentFontSize))
+      });
+      console.log("SIZE NOW: " + currentFontSize);
+      return true;
+    }
+  }
+]);
+
 const editor = new EditorView({
   state: EditorState.create({
     doc: startCode,
@@ -225,6 +268,8 @@ const editor = new EditorView({
     insertFourSpaces,
     fourSpaceIndent,
     newlineSameIndent,
+    fontSizeCompartment.of(fontSizeTheme(currentFontSize)),
+    fontSizeKeys,
     keymap.of([
       // Closed-brackets aware backspace
       ...closeBracketsKeymap,
@@ -421,6 +466,52 @@ document.getElementById("canvas").addEventListener('click', (e) => {
   } catch (err) {
     console.warn('Mouse runtime error:', err);
   }
+});
+
+function downloadFile(filename, text) {
+  const blob = new Blob([text], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  const code = editor.state.doc.toString();
+
+  // Ask user for filename
+  let filename = prompt("Enter filename:", "program");
+  if (!filename) return; // user pressed Cancel
+
+  // Ensure extension
+  if (!filename.endsWith(".quanta")) {
+    filename += ".quanta";
+  }
+
+  downloadFile(filename, code);
+});
+
+// Load file on demand
+const fileInput = document.getElementById("fileInput");
+
+document.getElementById("loadBtn").addEventListener("click", () => {
+  fileInput.value = ""; // reset so selecting the same file again still triggers
+  fileInput.click();    // open system file picker
+});
+
+fileInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    editor.dispatch({
+      changes: { from: 0, to: editor.state.doc.length, insert: reader.result }
+    });
+  };
+  reader.readAsText(file);
 });
 
 // // Ctrl/Cmd+Enter

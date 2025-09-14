@@ -638,7 +638,7 @@ impl Program {
                         if arg_list.len() != arg_defs.len() {
                             return Err(Error::type_er(format!("Funcion '{}' expects {} arguments, but got {}", name, arg_defs.len(), arg_list.len()), base.coords))
                         }
-                        for (i, (arg_name, argfunction_defs_def)) in arg_defs.iter().enumerate() {
+                        for (i, (arg_name, arg_def)) in arg_defs.iter().enumerate() {
                             let expr_type = self.type_check_expr(arg_list.get(i).unwrap())?;
                             if !arg_def.can_assign(&expr_type) {
                                 return Err(Error::type_er(format!("Funcion '{}' expects argument '{}' of type '{}', but got '{}'", name, arg_name, arg_def.to_string(), expr_type.to_string()), base.coords));
