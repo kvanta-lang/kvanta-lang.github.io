@@ -1,4 +1,4 @@
-# Quanta
+# Kvanta-lang
 
 Installation instructions:
 
