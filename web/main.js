@@ -107,6 +107,11 @@ function showError(editor, err) {
   editor.dispatch(setDiagnostics(editor.state, diagnostics));
 }
 
+function alertError(err) {
+    alert("Error at " + err.start_row + ":" + err.start_column + " - " + err.end_row + ":" + err.end_column + "\n" + err.get_error_message());
+
+}
+
 function showOk(editor) {
   editor.dispatch(setDiagnostics(editor.state, []));
 }
@@ -356,9 +361,7 @@ function doRun() {
       const compilation_result = await compiler.compile_code(src);   // Rust returns drawing commands (string)
       if (compilation_result.error_code != 0) {
         showError(editor, compilation_result);
-        console.log(compilation_result.get_error_message() + " at " 
-            + compilation_result.start_row + ":" + compilation_result.start_column
-            + " - " + compilation_result.end_row + ":" + compilation_result.end_column);
+        alertError(compilation_result);
         runBtn.disabled = false;
         return;
       } else {
