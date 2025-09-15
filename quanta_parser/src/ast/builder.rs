@@ -73,9 +73,17 @@ fn build_ast_from_forest(&mut self, statements: Pairs<Rule>) -> Result<Functions
                         let mut init_iter = init.into_inner().into_iter();
                         let type_name = self.build_ast_from_type(init_iter.next().unwrap())?;
                         let mut init_iter2 = init_iter.next().unwrap().into_inner().into_iter();
-                        let name = self.build_ast_from_ident(init_iter2.next().unwrap())?;
-                        let expr = self.build_ast_from_expression(init_iter2.next().unwrap())?;
-                        init_statements.insert(name, (coords, type_name, expr));
+                        let name = self.build_ast_from_noun(init_iter2.next().unwrap())?;
+                        match name {
+                            VariableCall::ArrayCall(_, _) => return Err(Error::parse(String::from("Array call not allowed in an init statement"), coords)),
+                            VariableCall::Name(n) => {
+                                if init_statements.contains_key(&n) {
+                                    return Err(Error::parse(format!("Global variable '{}' is already defined", &n), coords));
+                                }
+                                let expr = self.build_ast_from_expression(init_iter2.next().unwrap())?;
+                                init_statements.insert(n, (coords, type_name, expr));
+                            }
+                        }
                     } else {
                         return Err(Error::parse(format!("Expected global variable initialization, found: {:?}", init.as_rule()), coords!(init)));
                     }
@@ -409,9 +417,14 @@ fn build_ast_from_init(&self, command: Pairs<Rule>, coords: Coords) -> Result<As
         let type_val = self.build_ast_from_type(first)?;
         first = iter.next().unwrap();
         let mut assign = first.into_inner().into_iter();
-        let name = self.build_ast_from_ident(assign.next().unwrap())?;
-        let expr = self.build_ast_from_expression(assign.next().unwrap())?;
-        return Ok(AstNode{statement: AstStatement::Init { typ: type_val, val: name, expr }, coords});
+        let name = self.build_ast_from_noun(assign.next().unwrap())?;
+        return match name {
+            VariableCall::ArrayCall(_, _) => Err(Error::parse(String::from("Array call not allowed in an init statement"), coords)),
+            VariableCall::Name(n) => {
+                let expr = self.build_ast_from_expression(assign.next().unwrap())?;
+                Ok(AstNode{statement: AstStatement::Init { typ: type_val, val: n, expr }, coords})
+            }
+        }
     } 
     let mut assign = first.into_inner().into_iter();
     let name = self.build_ast_from_noun(assign.next().unwrap())?;

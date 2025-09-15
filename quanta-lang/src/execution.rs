@@ -424,7 +424,10 @@ impl Execution {
                 if lower_bound >= upper_bound {
                     std::mem::swap(&mut lower_bound, &mut upper_bound);
                 }
-                let random_value = (get_random() * ((upper_bound - lower_bound) as f64) + (lower_bound as f64)) as i32;
+                let random_value = (get_random() * ((upper_bound - lower_bound + 1) as f64) + (lower_bound as f64)) as i32;
+                if random_value > upper_bound {
+                    return Ok(Some(int(upper_bound, coords)));
+                }
                 Ok(Some(int(random_value, coords)))
             }
             name => {

@@ -57,16 +57,28 @@ impl Error {
     }
 }
 
-
-
 impl Error {
     pub fn from_pest_error(err: pest::error::Error<Rule>) -> Error {
-        let message = err.variant.message();
+        let message = err.variant.message().to_string();
         let (l1, c1, l2, c2) = match err.line_col {
             pest::error::LineColLocation::Pos((line, col)) => (line, col, line, col),
             pest::error::LineColLocation::Span((l1, c1), (l2, c2)) => (l1, c1, l2, c2),
         };
-        Error::parse(message.to_string(), (l1, c1, l2, c2))
+        if message.starts_with("expected operator") || message.starts_with("expected box") {
+            if c2 >= err.line().len() && !err.line().trim().ends_with(";") {
+                return Error::parse(format!("Probably missing ';'"), (l1, c1, l2, c2));
+            }
+            if c2 == 1 {
+                return Error::parse(format!("Probably missing ';' at line"), (l1-1, 1, l2, c2));
+            }
+        }
+        if message.starts_with("expected bracket_block") {
+            return Error::parse(format!("Commands for 'if', 'for', 'while' and 'func' should be put inside {{}}."), (l1, c1, l2, c2));
+        }
+        if message.starts_with("expected statement") {
+            return Error::parse(format!("Probably missing a ')' or a '}}'"), (l1, c1, l2, c2));
+        }
+        Error::parse(format!("ERROR {} on line '{}'", message.to_string(), err.line()), (l1, c1, l2, c2))
     }
 }
 

@@ -105,6 +105,12 @@ pub struct Type {
     pub is_const: bool,
 }
 
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeName {
     Primitive(BaseType),
@@ -113,8 +119,10 @@ pub enum TypeName {
 
 impl Type {
     pub fn to_string(&self) -> String {
-        format!("{} {}", if self.is_const { "const" } else { "" }, 
-            self.type_name.to_string())
+        if self.is_const {
+            return format!("const {}", self.type_name.to_string());
+        }
+        return self.type_name.to_string();
     }
 
     pub fn typ(t: BaseType) -> Type {

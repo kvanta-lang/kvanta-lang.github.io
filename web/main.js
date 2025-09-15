@@ -93,9 +93,9 @@ const newlineSameIndent = keymap.of([{
 
 function showError(editor, err) {
   let diagnostics = [];
-  const from_line = editor.state.doc.line(err.start_row);
-  const from = Math.min(from_line.to - 1, from_line.from + err.start_column - 1);
-  const to_line = editor.state.doc.line(err.end_row);
+  const from_line = editor.state.doc.line(Math.max(1, err.start_row));
+  const from = Math.min(from_line.to, from_line.from + err.start_column);
+  const to_line = editor.state.doc.line(Math.max(1, err.end_row));
   const to = Math.min(to_line.to, to_line.from + err.end_column); 
   diagnostics.push({
     from: from,
@@ -406,7 +406,7 @@ function setRunningUI() {
 
 function setIdleUI() {
   isRunning = false;
-  runBtn.textContent = 'Run (Ctrl/Cmd+Enter)';
+  runBtn.textContent = 'Run your program!';
   runBtn.dataset.state = 'run';
   runBtn.disabled = false;
 }

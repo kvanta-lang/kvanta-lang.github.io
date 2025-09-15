@@ -118,9 +118,9 @@ export function drawScript(script, should_draw_frame=false){
         case 'polygon': { const nums=[]; let i=1; for(;i<tok.length;i++){ if(tok[i].includes('=')) break; nums.push(Number(tok[i])); } const o=parseOptions(tok,i); applyStyle(o); drawPolygon(nums,o); break; }
         case 'arc': { const [_, cx, cy, r, a0, a1] = tok; const o=parseOptions(tok,6); applyStyle(o); drawArc(cx,cy,r,Number(a0),Number(a1),!!o.ccw,o); break; }
         case 'bg': case 'background': { const color = tok[1] || '#0a0f1f'; clearCanvas(color); break; }
-        case 'animate': {isAnimation = true; console.log("GOT ANIMATION HERE! " + isAnimation);}
-        case 'clear': {clearCanvas(); }
-        case 'error': {alert("Error: " + tok.slice(1).join(' ')); }
+        case 'animate': {isAnimation = true; console.log("GOT ANIMATION HERE! " + isAnimation); break;}
+        case 'clear': {clearCanvas(); break; }
+        case 'error': {alert("Error: " + raw); break; }
         default: /* ignore unknown */ break;
       }
     } catch (e) { console.warn('Error:', line, e); }

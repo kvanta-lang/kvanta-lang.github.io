@@ -247,18 +247,18 @@ impl Program {
             Ok(ReturnType::Full(t)) => {
                 if let Some(return_type) = &func.return_type {
                     if t != *return_type {
-                        Some(Error::logic(format!("Function {} return type mismatch: expected {:?}, got {:?}", func.name, return_type, t), func.header))
+                        Some(Error::logic(format!("Function {} return type mismatch: expected '{}', got '{}'", func.name, return_type, t), func.header))
                     } else {
                         None
                     }
                 } else {
-                    Some(Error::logic(format!("Function {} has no return type defined, but returns {:?}", func.name, t), func.header))
+                    Some(Error::logic(format!("Function {} has no return type defined, but returns {}", func.name, t), func.header))
                 }
             },
             Ok(ReturnType::Partial(t)) => {
                 if let Some(return_type) = &func.return_type {
                     if t != *return_type {
-                        return Some(Error::logic(format!("Function {} return type mismatch: expected {:?}, got {:?}", func.name, return_type, t), func.header));
+                        return Some(Error::logic(format!("Function {} return type mismatch: expected '{}', got '{}'", func.name, return_type, t), func.header));
                     }
                     return Some(Error::logic(format!("Expected a return statement at the end of function {}", func.name), func.header));
                 } else {
@@ -267,7 +267,7 @@ impl Program {
             },
             Ok(ReturnType::None) => {
                 if let Some(rt) = func.return_type {
-                    return Some(Error::logic(format!("Function {} has a return type {:?} defined but does not return anything", func.name, rt), func.header));
+                    return Some(Error::logic(format!("Function {} has a return type '{}' defined but does not return anything", func.name, rt), func.header));
                 }
                 None
             },
@@ -285,7 +285,10 @@ impl Program {
                     }
                 },
                 AstStatement::Init { typ, val, expr } => {
-                     match self.clone().type_check_init(typ.clone(), val.clone(), expr.clone(), line.coords) {
+                    if self.keywords.contains(&val) {
+                        return Err(Error::type_er(format!("'{}' is a keyword, it cannot be the name of a variable", &val), line.coords));
+                    }
+                    match self.clone().type_check_init(typ.clone(), val.clone(), expr.clone(), line.coords) {
                         Err(err) => return Err(err),
                         Ok(tupl) => {
                             self.scope.variables.insert(val.clone().trim().to_string(), tupl);
@@ -312,7 +315,7 @@ impl Program {
                         ReturnType::Partial(t) => {
                             if let Some(rt) = &return_type {
                                 if *rt != t {
-                                    return Err(Error::logic(format!("If block return type mismatch: expected {:?}, got {:?}", rt, t), line.coords));
+                                    return Err(Error::logic(format!("If block return type mismatch: expected '{}', got '{}'", rt, t), line.coords));
                                 }
                             } else {
                                 return_type = Some(t);
@@ -321,7 +324,7 @@ impl Program {
                         ReturnType::Full(t) => {
                             if let Some(rt) = &return_type {
                                 if *rt != t {
-                                    return Err(Error::logic(format!("If block return type mismatch: expected {:?}, got {:?}", rt, t), line.coords));
+                                    return Err(Error::logic(format!("If block return type mismatch: expected '{}', got '{}'", rt, t), line.coords));
                                 }
                             }
                             return Ok(ReturnType::Full(t));
@@ -334,7 +337,7 @@ impl Program {
                         ReturnType::Partial(t) => {
                             if let Some(rt) = &return_type {
                                 if *rt != t {
-                                    return Err(Error::logic(format!("For block return type mismatch: expected {:?}, got {:?}", rt, t), line.coords));
+                                    return Err(Error::logic(format!("For block return type mismatch: expected '{}', got '{}'", rt, t), line.coords));
                                 }
                             } else {
                                 return_type = Some(t);
@@ -343,7 +346,7 @@ impl Program {
                         ReturnType::Full(t) => {
                             if let Some(rt) = &return_type {
                                 if *rt != t {
-                                    return Err(Error::logic(format!("For block return type mismatch: expected {:?}, got {:?}", rt, t), line.coords));
+                                    return Err(Error::logic(format!("For block return type mismatch: expected '{}', got '{}'", rt, t), line.coords));
                                 }
                             }
                             return Ok(ReturnType::Full(t));
@@ -356,7 +359,7 @@ impl Program {
                         ReturnType::Partial(t) => {
                             if let Some(rt) = &return_type {
                                 if *rt != t {
-                                    return Err(Error::logic(format!("For block return type mismatch: expected {:?}, got {:?}", rt, t), line.coords));
+                                    return Err(Error::logic(format!("For block return type mismatch: expected '{}', got '{}'", rt, t), line.coords));
                                 }
                             } else {
                                 return_type = Some(t);
@@ -365,7 +368,7 @@ impl Program {
                         ReturnType::Full(t) => {
                             if let Some(rt) = &return_type {
                                 if *rt != t {
-                                    return Err(Error::logic(format!("For block return type mismatch: expected {:?}, got {:?}", rt, t), line.coords));
+                                    return Err(Error::logic(format!("For block return type mismatch: expected '{}', got '{}'", rt, t), line.coords));
                                 }
                             }
                             return Ok(ReturnType::Full(t));
@@ -376,7 +379,7 @@ impl Program {
                     let expr_type = self.create_subprogram(None).type_check_expr(&expr)?;
                     if let Some(rt) = &return_type {
                         if *rt != expr_type {
-                            return Err(Error::logic(format!("Return type mismatch: expected {:?}, got {:?}", rt, expr_type), line.coords));
+                            return Err(Error::logic(format!("Return type mismatch: expected '{}', got '{}'", rt, expr_type), line.coords));
                         }
                     }
                     return Ok(ReturnType::Full(expr_type))
@@ -403,7 +406,7 @@ impl Program {
                         Err(error) => return Some(error),
                         Ok(arg_type) => {
                             if arg_type.type_name != Primitive(Int) {
-                                return Some(Error::type_er(format!("Wrong type of argument for command {}: got {:?}, expected Int", name, arg_type), coords));
+                                return Some(Error::type_er(format!("Wrong type of argument for command {}: got '{}', expected Int", name, arg_type), coords));
                             }
                         }
                     }
@@ -411,14 +414,14 @@ impl Program {
                 return None;
             }
             if params.len() != args.len() {
-                return Some(Error::logic(format!("Wrong number of arguments for command {}: got {}, expected {}", name, args.len(), params.len()), coords));
+                return Some(Error::logic(format!("Wrong number of arguments for command '{}': got {}, expected {}", name, args.len(), params.len()), coords));
             }
             for (i, (param_name,param_type)) in params.iter().enumerate() {
                 match self.clone().type_check_expr(&args[i]) {
                     Err(error) => return Some(error),
                     Ok(arg_type) => {
                         if arg_type.type_name != param_type.type_name {
-                            return Some(Error::type_er(format!("Wrong type of argument '{}' for command {}: got {:?}, expected {:?}", param_name, name, arg_type, params[i]), coords));
+                            return Some(Error::type_er(format!("Wrong type of argument '{}' for command '{}': got '{}', expected '{}'", param_name, name, arg_type, param_type), coords));
                         }
                     }
                 }
@@ -437,7 +440,7 @@ impl Program {
         }
         let expr_type = self.clone().type_check_expr(&expr)?;
         if !var_type.can_assign(&expr_type) {
-            return Err(Error::logic(format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", expr_type, val, var_type), coords));
+            return Err(Error::logic(format!("Cannot assign expression of type '{}' to variable '{}' of type '{}'!", expr_type, val, var_type), coords));
         }
         Ok((var_type, expr))
     }
@@ -451,7 +454,7 @@ impl Program {
         } else {
             let expr_type = self.clone().type_check_expr(&expr)?;
             if !new_type_def.can_assign(&expr_type) {
-                return Err(Error::logic(format!("Cannot assign expression of type {:?} to variable {} of type {:?}!", expr_type, val, new_type_def), coords));
+                return Err(Error::logic(format!("Cannot assign expression of type '{}' to variable '{}' of type '{}'!", expr_type, val, new_type_def), coords));
             }
             Ok((new_type_def, expr))
         }
@@ -484,7 +487,7 @@ impl Program {
 
         if let (Some(t1), Some(t2)) = (if_type.t(), else_type.t()) {
             if t1 != t2 {
-                return Err(Error::logic(format!("Return type of if and else block must match: {:?} != {:?}", t1, t2), (l1, r1, l2, r2)));
+                return Err(Error::logic(format!("Return type of if and else block must match: '{}' != '{}'", t1, t2), (l1, r1, l2, r2)));
             }
         }
 
@@ -532,14 +535,14 @@ impl Program {
                         let inner_type = self.clone().type_check_expr(&*inner)?;
                         if inner_type.type_name == Primitive(Int) {Ok(Type::typ(Int))} else 
                         if inner_type.type_name == Primitive(Float) {Ok(Type::typ(Float))} else 
-                        {Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))}
+                        {Err(Error::type_er(format!("Unary minus can only be applied to types 'int' and 'float', but got {}", inner_type), expr.coords))}
                     },
                     UnaryOperator::NOT => {
                         let inner_type = self.clone().type_check_expr(&*inner)?;
                         if inner_type.type_name == Primitive(Bool) {
                             Ok(Type::typ(Bool))
                         } else {
-                            Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
+                            Err(Error::type_er(format!("Unary NOT operator can only be applied to bool expressions, but got {}", inner_type), expr.coords))
                         }
                     },
                     UnaryOperator::Parentheses =>  self.clone().type_check_expr(&*inner),
@@ -549,16 +552,18 @@ impl Program {
                 let lhs_type =  self.clone().type_check_expr(&*lhs)?;
                 let rhs_type =  self.clone().type_check_expr(&*rhs)?;
                 if *op == Operator::AND || *op == Operator::OR {
-                    if lhs_type.type_name != Primitive(Bool) || rhs_type.type_name != Primitive(Bool) {
-                        return Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
+                    if lhs_type.type_name != Primitive(Bool) {
+                        return Err(Error::type_er(format!("Expected bool expression for operator '{:?}', got '{}'", *op, lhs_type), lhs.coords))
+                    } else if rhs_type.type_name != Primitive(Bool) {
+                        return Err(Error::type_er(format!("Expected bool expression for operator '{:?}', got '{}'", *op, rhs_type), rhs.coords))
                     }
                     Ok(Type::typ(Bool))
                 } else {
                     if lhs_type.type_name != Primitive(Int) && lhs_type.type_name != Primitive(Float) {
-                        return Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
+                        return Err(Error::type_er(format!("Expected int or float expression for operator '{:?}', got '{}'", *op, lhs_type), lhs.coords));
                     }
                     if rhs_type.type_name != Primitive(Int) && rhs_type.type_name!= Primitive(Float) {
-                        return Err(Error::type_er(format!("Type mismatch in expression: {:?}", expr.expr_type), expr.coords))
+                        return Err(Error::type_er(format!("Expected int or float expression for operator '{:?}', got '{}'", *op, rhs_type), rhs.coords));
                     }
                     if !is_arith(*op) {
                         return Ok(Type::typ(Bool))
@@ -626,14 +631,14 @@ impl Program {
                 }
                 let inner_type = &types.first().unwrap().clone();
                 
-                if types.iter().any(|t| t.type_name != inner_type.type_name) {
-                    return Err(Error::type_er(format!("Array elements must all be of type {:?}, got {:?}", inner_type, types), base.coords));
+                if let Some(outsider) = types.iter().find(|t| t.type_name != inner_type.type_name) {
+                    return Err(Error::type_er(format!("Array elements must all be of type '{}', got '{}'", inner_type, outsider), base.coords));
                 }
                 Ok(Type{type_name:Array(Box::new(Some(inner_type.clone())), arr.len()), is_const: false})
             },
             BaseValueType::FunctionCall(name,arg_list, return_type ) => {
                 match self.function_defs.get(name) {
-                    None => Err(Error::type_er(format!("Unknown function {}, got funcs: {:?}", name, self.function_defs), base.coords)),
+                    None => Err(Error::type_er(format!("Unknown function '{}'", name), base.coords)),
                     Some((arg_defs, _)) => {
                         if arg_list.len() != arg_defs.len() {
                             return Err(Error::type_er(format!("Funcion '{}' expects {} arguments, but got {}", name, arg_defs.len(), arg_list.len()), base.coords))
