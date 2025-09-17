@@ -105,7 +105,6 @@ export function drawScript(script, should_draw_frame=false){
   //bufferCanvas.width = drawCanvas.width;
   //bufferCanvas.height = drawCanvas.height;
   for (const raw of lines) {
-    console.log("Drawing line: " + raw);
     if (isCancelled) { return; }
     const line = raw.trim();
     if (!line || line.startsWith('//')) continue;
