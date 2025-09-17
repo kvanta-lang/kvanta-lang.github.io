@@ -179,14 +179,14 @@ impl Execution {
         return false;
     }
 
-    pub fn get(&mut self, name: &str) -> Option<BaseValue> {
+    pub fn get(&self, name: &str) -> Option<BaseValue> {
         if let Some(var) = self.scope.lock().unwrap().get(name) {
             return Some(var.clone());
         }
         self.global_vars.lock().unwrap().get(name).map(|x| x.clone())
     }
 
-    async fn get_variable(&mut self, var: &VariableCall, coords: Coords) -> Result<BaseValue, Error> {
+    async fn get_variable(&self, var: &VariableCall, coords: Coords) -> Result<BaseValue, Error> {
         match var {
             VariableCall::Name(name) => self.get(name).ok_or(Error::runtime(format!("Unknown variable: {}", name), coords)),
             VariableCall::ArrayCall(name, indices) => {
@@ -483,6 +483,7 @@ impl Execution {
                         let mut new_exec = self.create_subscope();
                         new_exec.execute_commands(func.block.nodes.clone()).await?;
                         self.canvas.add_command("end".into());
+                        return Ok(());
                     }
                 }
                 return Err(Error::runtime(String::from("No main function found"), (0,0,0,0)));
@@ -620,7 +621,7 @@ impl Execution {
 
 
     pub fn calculate_expression<'a>(
-        &'a mut self,
+        &'a self,
         expr: Expression,
     ) -> Pin<Box<dyn Future<Output = Result<BaseValue, Error>> + 'a>> {
         
@@ -718,7 +719,7 @@ fn compare_ints(x: i32, y : i32, op: Operator, coords: Coords) -> Result<BaseVal
         Operator::Plus => Ok(int(x + y, coords)),
         Operator::Minus => Ok(int(x - y, coords)),
         Operator::Mult => Ok(int(x * y, coords)),
-        Operator::Div => Ok(int(x / y, coords)),
+        Operator::Div => if y == 0 { Err(Error::runtime(format!("Division by 0"), coords)) } else {Ok(int(x / y, coords)) },
         Operator::Mod => Ok(int(x % y, coords)),
         v => Err(Error::runtime(format!("Cannot apply operator {:?} to values of type int!",v), coords))   
     }
@@ -737,7 +738,7 @@ fn compare_floats(x: f32, y : f32, op: Operator, coords: Coords) -> Result<BaseV
         Operator::Plus => Ok(flt(x + y, coords)),
         Operator::Minus => Ok(flt(x - y, coords)),
         Operator::Mult => Ok(flt(x * y, coords)),
-        Operator::Div => Ok(flt(x / y, coords)),
+        Operator::Div => if y == 0.0 { Err(Error::runtime(format!("Division by 0"), coords)) } else {Ok(flt(x / y, coords)) },
         Operator::Mod => Ok(flt(x % y, coords)),
 
         v => Err(Error::runtime(format!("Cannot apply operator {:?} to values of type float!",v), coords))

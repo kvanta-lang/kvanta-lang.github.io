@@ -1,8 +1,8 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{spawn_local};
-use quanta_parser::{ast::keys::key_to_number, error::Error};
+use quanta_parser::{ast::keys::key_to_number};
 
-use crate::{execution::{Execution, Scope}, program::Program, utils::{canvas::{Canvas, CanvasReader}, message::CommandBlock}};
+use crate::{execution::{Execution, Scope}, program::Program, utils::{canvas::{Canvas, CanvasReader}, message::{CommandBlock, RuntimeError}}};
 
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 
@@ -13,25 +13,27 @@ pub struct Runtime {
     key_execution: Option<Execution>,
     mouse_execution: Option<Execution>,
     canvas: CanvasReader,
-    global_error: Option<Error>,
+    runtime_error: Arc<Mutex<RuntimeError>>,
 }
 
 
 #[wasm_bindgen]
 impl Runtime {
     pub fn execute(&self) {
-        if self.global_error.is_some() {
-            panic!("Got error: {}", self.global_error.clone().unwrap());
+        if self.runtime_error.lock().unwrap().error_code != 0 {
+            return;
         }
+        let runtime_error = Arc::clone(&self.runtime_error);
         let new_exec = self.main_execution.clone();
         spawn_local(async move {
             match new_exec.clone().execute().await {
-            Ok(_) => {},
-            Err(err) => {
-                panic!("Got error: {}", err);
+                Ok(_) => {},
+                Err(err) => {
+                    let mut inner_error = runtime_error.lock().unwrap();
+                    *inner_error = RuntimeError::new(err);
+                }
             }
-        }
-        })
+        });
     }
 
     pub fn execute_key(&self, key: String) {
@@ -65,19 +67,29 @@ impl Runtime {
     pub fn get_commands(&mut self) -> Vec<CommandBlock> {
         let mut result = vec![];
         let mut block = CommandBlock::new();
+        if self.runtime_error.lock().unwrap().error_code != 0 {
+                block.set_status(3);
+                result.push(block);
+                return result;
+            }
         
         for command in self.canvas.get_commands() {
+            if self.runtime_error.lock().unwrap().error_code != 0 {
+                block.set_status(3);
+                result.push(block);
+                return result;
+            }
             if command.starts_with("sleep") {
                 let time = command.split(' ').collect::<Vec<&str>>().get(1).unwrap().parse::<i32>().unwrap(); //parse i32
                 block.sleep_for = time;
                 result.push(block);
                 block = CommandBlock::new();
             } else if command.starts_with("frame") {
-                block.should_draw_frame = true;
+                block.set_status(0);
                 result.push(block);
                 block = CommandBlock::new();
             } else if command.starts_with("end") {
-                block.sleep_for = -1;
+                block.set_status(2);
                 result.push(block);
                 return result;
             } else {
@@ -86,6 +98,10 @@ impl Runtime {
         }
         result.push(block);
         return result;
+    }
+
+    pub fn get_runtime_error(&self) -> RuntimeError {
+        self.runtime_error.lock().unwrap().clone()
     }
 }
 
@@ -128,16 +144,15 @@ impl Runtime {
 
         let defs = global_var_defs.lock().unwrap();
 
-        let mut global_err = None;
+        let mut runtime_error = RuntimeError::zero();
 
         for (name, (_, expr)) in defs.iter() {
-            let mut new_exec = exec.clone().create_subscope();
-            let val = new_exec.calculate_expression(expr.clone()).await;
+            let val = exec.calculate_expression(expr.clone()).await;
             match val {
                 Ok(value) => {
                     exec.global_vars.lock().unwrap().insert(name.clone(), value)
                 },
-                Err(e) => {global_err = Some(e); break;}
+                Err(e) => {runtime_error = RuntimeError::new(e); break;}
             };
         }
 
@@ -146,7 +161,7 @@ impl Runtime {
             key_execution: keyboard_exec,
             mouse_execution: mouse_exec,
             canvas: canvas,
-            global_error: global_err
+            runtime_error: Arc::new(Mutex::new(runtime_error)),
         }
     }
 }

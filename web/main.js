@@ -108,6 +108,9 @@ function showError(editor, err) {
 }
 
 function alertError(err) {
+    console.log(err.get_error_message() + " at " 
+        + err.start_row + ":" + err.start_column
+        + " - " + err.end_row + ":" + err.end_column);
     alert("Error at " + err.start_row + ":" + err.start_column + " - " + err.end_row + ":" + err.end_column + "\n" + err.get_error_message());
 
 }
@@ -157,10 +160,8 @@ async function tryCompile(editor, src) {
   let idle_compiler = Compiler.new();
   const compilation_result = await idle_compiler.compile_code(src);   // Rust returns drawing commands (string)
    if (compilation_result.error_code != 0) {
-    showError(editor.view, compilation_result);
-    console.log(compilation_result.get_error_message() + " at " 
-        + compilation_result.start_row + ":" + compilation_result.start_column
-        + " - " + compilation_result.end_row + ":" + compilation_result.end_column);
+    const err = compilation_result.get_error();
+    showError(editor.view, err);
   //   runBtn.disabled = false;
   //   return;
    } else {
@@ -360,8 +361,9 @@ function doRun() {
       let compiler = Compiler.new();
       const compilation_result = await compiler.compile_code(src);   // Rust returns drawing commands (string)
       if (compilation_result.error_code != 0) {
-        showError(editor, compilation_result);
-        alertError(compilation_result);
+        const err = compilation_result.get_error();
+        showError(editor, err);
+        alertError(err);
         runBtn.disabled = false;
         return;
       } else {
@@ -374,19 +376,27 @@ function doRun() {
       let need_continue = true;
       while(need_continue) {
         if (checkIsCancelled()) { return; }
-        let blocks = runtime.get_commands();
+        let blocks = runtime.get_commands();     
         for (let i = 0; i < blocks.length; i++) {
           if (checkIsCancelled()) { return; }
           const block = blocks[i];
           let commands = block.get_commands();
-           drawScript(commands, block.should_draw_frame);
-           if (block.sleep_for >= 0) {
-            await sleep(block.sleep_for);
-           } else {
-            console.log("finish!");
+          drawScript(commands, block.should_draw_frame);
+          let blockStatus = block.get_status();
+          if (blockStatus == 3) { // Error
+            const err = runtime.get_runtime_error();
+            showError(editor, err);
+            alertError(err);
             need_continue = false;
             break;
+           } else if (blockStatus == 2) { // End
+            need_continue = false;
+            break;
+           } else { // OkDraw or OkNoDraw
+            drawScript("", true); // force draw
            }
+          await sleep(block.sleep_for);
+           
         }
       }
     } catch (e) {
