@@ -105,6 +105,7 @@ export function drawScript(script, should_draw_frame=false){
   //bufferCanvas.width = drawCanvas.width;
   //bufferCanvas.height = drawCanvas.height;
   for (const raw of lines) {
+    console.log("Drawing line: " + raw);
     if (isCancelled) { return; }
     const line = raw.trim();
     if (!line || line.startsWith('//')) continue;
@@ -112,14 +113,14 @@ export function drawScript(script, should_draw_frame=false){
     const cmd = tok[0].toLowerCase();
     try {
       switch (cmd) {
-        case 'circle': { const [_, cx, cy, r] = tok; const o=parseOptions(tok,4); applyStyle(o); drawCircle(cx,cy,r,o); break; }
-        case 'rectangle': { const [_, x, y, w, h] = tok; const o=parseOptions(tok,5); applyStyle(o); drawRect(x,y,w,h,o); break; }
-        case 'line': { const [_, x1, y1, x2, y2] = tok; const o=parseOptions(tok,5); applyStyle(o); drawLine(x1,y1,x2,y2,o); break; }
-        case 'polygon': { const nums=[]; let i=1; for(;i<tok.length;i++){ if(tok[i].includes('=')) break; nums.push(Number(tok[i])); } const o=parseOptions(tok,i); applyStyle(o); drawPolygon(nums,o); break; }
-        case 'arc': { const [_, cx, cy, r, a0, a1] = tok; const o=parseOptions(tok,6); applyStyle(o); drawArc(cx,cy,r,Number(a0),Number(a1),!!o.ccw,o); break; }
-        case 'bg': case 'background': { const color = tok[1] || '#0a0f1f'; clearCanvas(color); break; }
-        case 'animate': {isAnimation = true; console.log("GOT ANIMATION HERE! " + isAnimation); break;}
-        case 'clear': {clearCanvas(); break; }
+        case 'circle': { const [_, cx, cy, r] = tok; const o=parseOptions(tok,4); applyStyle(o); drawCircle(cx,cy,r,o); console.log("Drawing line: " + raw); break; }
+        case 'rectangle': { const [_, x, y, w, h] = tok; const o=parseOptions(tok,5); applyStyle(o); drawRect(x,y,w,h,o); console.log("Drawing line: " + raw); break; }
+        case 'line': { const [_, x1, y1, x2, y2] = tok; const o=parseOptions(tok,5); applyStyle(o); drawLine(x1,y1,x2,y2,o); console.log("Drawing line: " + raw); break; }
+        case 'polygon': { const nums=[]; let i=1; for(;i<tok.length;i++){ if(tok[i].includes('=')) break; nums.push(Number(tok[i])); } const o=parseOptions(tok,i); applyStyle(o); drawPolygon(nums,o); console.log("Drawing line: " + raw); break; }
+        case 'arc': { const [_, cx, cy, r, a0, a1] = tok; const o=parseOptions(tok,6); applyStyle(o); drawArc(cx,cy,r,Number(a0),Number(a1),!!o.ccw,o); console.log("Drawing line: " + raw); break; }
+        case 'bg': case 'background': { const color = tok[1] || '#0a0f1f'; clearCanvas(color); console.log("Drawing line: " + raw); break; }
+        case 'animate': {isAnimation = true; console.log("GOT ANIMATION HERE! " + isAnimation); console.log("Drawing line: " + raw); break;}
+        case 'clear': {clearCanvas(); console.log("Drawing line: " + raw); break; }
         case 'error': {alert("Error: " + raw); break; }
         default: /* ignore unknown */ break;
       }

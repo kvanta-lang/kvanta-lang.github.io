@@ -325,17 +325,14 @@ function doStop() {
 
 async function startExecution() {
   let res = runtime.execute();
-  console.log("EXECUTION ENDED: " + res);
 }
 
 async function executeKey(key) {
   let res = runtime.execute_key(key);
-  console.log("EXECUTION ENDED: " + res);
 }
 
 async function executeMouse(x, y) {
   let res = runtime.execute_mouse(x, y);
-  console.log("EXECUTION ENDED: " + res);
 }
 
 // window.addEventListener('keydown', (e) => {
@@ -392,8 +389,6 @@ function doRun() {
            } else if (blockStatus == 2) { // End
             need_continue = false;
             break;
-           } else { // OkDraw or OkNoDraw
-            drawScript("", true); // force draw
            }
           await sleep(block.sleep_for);
            
