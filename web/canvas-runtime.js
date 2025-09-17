@@ -129,6 +129,7 @@ export function drawScript(script, should_draw_frame=false){
   if (!isAnimation || should_draw_frame) {
     drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     drawCtx.drawImage(bufferCanvas, 0, 0);
+    requestAnimationFrame(drawScript); 
   }
 }
 
