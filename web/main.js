@@ -3,7 +3,7 @@
 //import { EditorState } from "@codemirror/state";
 //import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 //import { indentOnInput } from "@codemirror/language";
-import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
+//import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import {barf, dracula} from 'thememirror';
 //import { autocompletion } from "@codemirror/autocomplete";
 import {EditorState, RangeSetBuilder, EditorSelection, Compartment} from "@codemirror/state"
