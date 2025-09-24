@@ -85,7 +85,8 @@ pub enum BaseValueType {
     Id(VariableCall),
     Int(i32),
     Bool(bool),
-    Color(u8, u8, u8),
+    //StringVal(String),
+    Color(u8, u8, u8, u8),
     RandomColor(i32),
     Float(f32),
     Array(Vec<BaseValue>), // Array of BaseValues
@@ -174,7 +175,8 @@ impl BaseValue {
             }, 
             BaseValueType::Int(_) => Ok(Primitive(BaseType::Int)),
             BaseValueType::Bool(_) => Ok(Primitive(BaseType::Bool)),
-            BaseValueType::Color(_, _, _) => Ok(Primitive(BaseType::Color)),
+            //BaseValueType::StringVal(_) => Ok(Primitive(BaseType::StringType)),
+            BaseValueType::Color(_, _, _, _) => Ok(Primitive(BaseType::Color)),
             BaseValueType::RandomColor(_) => Ok(Primitive(BaseType::Color)),
             BaseValueType::Float(_) => Ok(Primitive(BaseType::Float)),
             BaseValueType::Array(elems) => {

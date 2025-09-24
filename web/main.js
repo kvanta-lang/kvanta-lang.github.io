@@ -509,6 +509,19 @@ document.getElementById("loadBtn").addEventListener("click", () => {
   fileInput.click();    // open system file picker
 });
 
+document.getElementById("saveBtn").addEventListener("click", () => {
+  const canvas = document.getElementById("canvas");
+  const image = canvas.toDataURL("image/jpeg", 0.95); // 0.95 is quality
+
+  const filename = prompt("Enter painting name:", "painting");
+  if (!filename) return; // user pressed Cancel
+
+  const link = document.createElement("a");
+  link.href = image;
+  link.download = filename + ".jpg";
+  link.click();
+});
+
 fileInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;

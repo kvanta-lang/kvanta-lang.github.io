@@ -69,8 +69,8 @@ pub struct Execution {
     pub random_color: Arc<Mutex<i32>>,
 }
 
-fn color_to_str(r: &u8, g : &u8, b: &u8) -> String {
-    let s = format!("#{:02x}{:02x}{:02x}", r, g, b).to_lowercase();
+fn color_to_str(r: &u8, g : &u8, b: &u8, a: &u8) -> String {
+    let s = format!("#{:02x}{:02x}{:02x}{:02x}", r, g, b, a).to_lowercase();
     s
 }
 
@@ -324,9 +324,9 @@ impl Execution {
                 Ok(None)
             },
             "setLineColor" => {
-                if let BaseValueType::Color(r,g,b) = &vals[0].val {
+                if let BaseValueType::Color(r,g,b, a) = &vals[0].val {
                     let mut inner  = self.line_color.lock().unwrap();
-                    *inner = color_to_str(r, g, b);
+                    *inner = color_to_str(r, g, b, a);
                     Ok(None)
                 }
                 else {
@@ -334,9 +334,9 @@ impl Execution {
                 }
             },
             "setFigureColor" => {
-                if let BaseValueType::Color(r,g,b) = &vals[0].val {
+                if let BaseValueType::Color(r,g,b, a) = &vals[0].val {
                     let mut inner  = self.figure_color.lock().unwrap();
-                    *inner = color_to_str(r, g, b);
+                    *inner = color_to_str(r, g, b, a);
                     Ok(None)
                 }
                 else {
@@ -383,13 +383,13 @@ impl Execution {
                 if r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 {
                     return Err(Error::runtime(String::from("RGB values must be between 0 and 255"), coords));
                 }
-                Ok(Some(BaseValue{val: BaseValueType::Color(r as u8, g as u8, b as u8), coords}))
+                Ok(Some(BaseValue{val: BaseValueType::Color(r as u8, g as u8, b as u8, 255), coords}))
             },
             "Color::Random" => {
                 let r = (get_random() * 255.0) as u8;
                 let g = (get_random() * 255.0) as u8;
                 let b = (get_random() * 255.0) as u8;
-                Ok(Some(BaseValue{val: BaseValueType::Color(r,g,b), coords}))
+                Ok(Some(BaseValue{val: BaseValueType::Color(r,g,b, 255), coords}))
             },
             "round" => {
                 let num = expect_arg!("round", vals, 0, Float(v) => *v);

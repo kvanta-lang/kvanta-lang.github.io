@@ -193,6 +193,8 @@ export const quantaCompletion = QuantaLanguage.data.of({
   {label: "DarkGray", type: "keyword"},
   {label: "LightGray", type: "keyword"},
   {label: "White", type: "keyword"},
+  {label: "Background", type: "keyword"},
+  {label: "Transparent", type: "keyword"},
   {label: "Random", type: "keyword"},
 
     {label: "circle", type: "function"},

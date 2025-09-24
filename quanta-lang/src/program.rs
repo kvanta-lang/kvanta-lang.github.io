@@ -223,7 +223,8 @@ impl Program {
                                 Primitive(Int) => Expression{expr_type: ExpressionType::Value(BaseValue{val: BaseValueType::Int(0), coords: (0,0,0,0)}), coords: (0,0,0,0)},
                                 Primitive(Float) => Expression{expr_type: ExpressionType::Value(BaseValue{val: BaseValueType::Float(0.0), coords: (0,0,0,0)}), coords: (0,0,0,0)},
                                 Primitive(Bool) => Expression{expr_type: ExpressionType::Value(BaseValue{val: BaseValueType::Bool(false), coords: (0,0,0,0)}), coords: (0,0,0,0)},
-                                Primitive(Color) => Expression{expr_type: ExpressionType::Value(BaseValue{val: BaseValueType::Color(0,0,0), coords: (0,0,0,0)}), coords: (0,0,0,0)},
+                                Primitive(Color) => Expression{expr_type: ExpressionType::Value(BaseValue{val: BaseValueType::Color(0,0,0,255), coords: (0,0,0,0)}), coords: (0,0,0,0)},
+                                //Primitive(StringType) => Expression{expr_type: ExpressionType::Value(BaseValue{val: BaseValueType::StringVal(String::new()), coords: (0,0,0,0)}), coords: (0,0,0,0)},
                                 Array(_, _) => {
                                     Expression{expr_type: ExpressionType::Value(BaseValue{val: BaseValueType::Array(vec![]), coords: (0,0,0,0)}), coords: (0,0,0,0)}
                                 }
@@ -618,7 +619,7 @@ impl Program {
             BaseValueType::Id(var) => self.type_check_var(&var, coords),
             BaseValueType::Int(_) => Ok(Type::typ(Int)),
             BaseValueType::Bool(_) => Ok(Type::typ(Bool)),
-            BaseValueType::Color(_, _, _) => Ok(Type::typ(Color)),
+            BaseValueType::Color(_, _, _, _) => Ok(Type::typ(Color)),
             BaseValueType::RandomColor(_) => Ok(Type::typ(Color)),
             BaseValueType::Float(_) => Ok(Type::typ(Float)),
             BaseValueType::Array(arr) => {

@@ -509,57 +509,59 @@ fn build_ast_from_simple_value(&self, val: Pair<Rule>) -> Result<SimpleValue, Er
 fn build_ast_from_color(&self, val: Pair<Rule>) -> Result<BaseValue, Error> {
     let v = match val.as_str() {
         // Reds
-        "Color::Red"        => Ok(BaseValueType::Color(233,  35,  49)),
-        "Color::DarkRed"    => Ok(BaseValueType::Color(139,   0,   0)),
-        "Color::LightRed"   => Ok(BaseValueType::Color(255, 102, 102)),
+        "Color::Red"        => Ok(BaseValueType::Color(233,  35,  49, 255)),
+        "Color::DarkRed"    => Ok(BaseValueType::Color(139,   0,   0, 255)),
+        "Color::LightRed"   => Ok(BaseValueType::Color(255, 102, 102, 255)),
 
         // Greens
-        "Color::Green"      => Ok(BaseValueType::Color(126, 183, 134)),
-        "Color::DarkGreen"  => Ok(BaseValueType::Color(  0, 100,   0)),
-        "Color::LightGreen" => Ok(BaseValueType::Color(144, 238, 144)),
+        "Color::Green"      => Ok(BaseValueType::Color(126, 183, 134, 255)),
+        "Color::DarkGreen"  => Ok(BaseValueType::Color(  0, 100,   0, 255)),
+        "Color::LightGreen" => Ok(BaseValueType::Color(144, 238, 144, 255)),
 
         // Blues
-        "Color::Blue"       => Ok(BaseValueType::Color( 46, 115, 230)),
-        "Color::DarkBlue"   => Ok(BaseValueType::Color(  0,   0, 139)),
-        "Color::LightBlue"  => Ok(BaseValueType::Color(173, 216, 230)),
+        "Color::Blue"       => Ok(BaseValueType::Color( 46, 115, 230, 255)),
+        "Color::DarkBlue"   => Ok(BaseValueType::Color(  0,   0, 139, 255)),
+        "Color::LightBlue"  => Ok(BaseValueType::Color(173, 216, 230, 255)),
 
         // Yellows
-        "Color::Yellow"     => Ok(BaseValueType::Color(253, 226,  93)),
-        "Color::DarkYellow" => Ok(BaseValueType::Color(204, 204,   0)),
-        "Color::LightYellow"=> Ok(BaseValueType::Color(255, 240, 154)),
+        "Color::Yellow"     => Ok(BaseValueType::Color(253, 226,  93, 255)),
+        "Color::DarkYellow" => Ok(BaseValueType::Color(204, 204,   0, 255)),
+        "Color::LightYellow"=> Ok(BaseValueType::Color(255, 240, 154, 255)),
 
         // Oranges
-        "Color::Orange"     => Ok(BaseValueType::Color(255, 165,   0)),
-        "Color::DarkOrange" => Ok(BaseValueType::Color(255, 140,   0)),
-        "Color::LightOrange"=> Ok(BaseValueType::Color(255, 200, 124)),
+        "Color::Orange"     => Ok(BaseValueType::Color(255, 165,   0, 255)),
+        "Color::DarkOrange" => Ok(BaseValueType::Color(255, 140,   0, 255)),
+        "Color::LightOrange"=> Ok(BaseValueType::Color(255, 200, 124, 255)),
 
         // Pinks
-        "Color::Pink"       => Ok(BaseValueType::Color(251, 154, 181)),
-        "Color::LightPink"  => Ok(BaseValueType::Color(255, 182, 193)),
-        "Color::HotPink"    => Ok(BaseValueType::Color(255, 105, 180)),
+        "Color::Pink"       => Ok(BaseValueType::Color(251, 154, 181, 255)),
+        "Color::LightPink"  => Ok(BaseValueType::Color(255, 182, 193, 255)),
+        "Color::HotPink"    => Ok(BaseValueType::Color(255, 105, 180, 255)),
 
         // Purples / Violets
-        "Color::Purple"     => Ok(BaseValueType::Color(128,   0, 128)),
-        "Color::Violet"     => Ok(BaseValueType::Color(148,   0, 211)),
-        "Color::DarkViolet" => Ok(BaseValueType::Color( 75,   0, 130)),
-        "Color::LightViolet"=> Ok(BaseValueType::Color(218, 112, 214)),
+        "Color::Purple"     => Ok(BaseValueType::Color(128,   0, 128, 255)),
+        "Color::Violet"     => Ok(BaseValueType::Color(148,   0, 211, 255)),
+        "Color::DarkViolet" => Ok(BaseValueType::Color( 75,   0, 130, 255)),
+        "Color::LightViolet"=> Ok(BaseValueType::Color(218, 112, 214, 255)),
 
         // Browns
-        "Color::Brown"      => Ok(BaseValueType::Color(101,  67,  33)),
-        "Color::DarkBrown"  => Ok(BaseValueType::Color(50, 30, 15)),
-        "Color::LightBrown" => Ok(BaseValueType::Color(150,  90,  42)), // tan
+        "Color::Brown"      => Ok(BaseValueType::Color(101,  67,  33, 255)),
+        "Color::DarkBrown"  => Ok(BaseValueType::Color(50,   30,  15, 255)),
+        "Color::LightBrown" => Ok(BaseValueType::Color(150,  90,  42, 255)), // tan
 
         // Cyans / Teals
-        "Color::Cyan"       => Ok(BaseValueType::Color( 59, 168, 231)),
-        "Color::DarkCyan"   => Ok(BaseValueType::Color( 29, 98, 139)),
-        "Color::LightCyan"  => Ok(BaseValueType::Color(69, 182, 255)),
+        "Color::Cyan"       => Ok(BaseValueType::Color( 59, 168, 231, 255)),
+        "Color::DarkCyan"   => Ok(BaseValueType::Color( 29,  98, 139, 255)),
+        "Color::LightCyan"  => Ok(BaseValueType::Color( 69, 182, 255, 255)),
 
         // Grays / Neutrals
-        "Color::Black"      => Ok(BaseValueType::Color(  0,   0,   0)),
-        "Color::Gray"       => Ok(BaseValueType::Color(128, 128, 128)),
-        "Color::DarkGray"   => Ok(BaseValueType::Color( 64,  64,  64)),
-        "Color::LightGray"  => Ok(BaseValueType::Color(211, 211, 211)),
-        "Color::White"      => Ok(BaseValueType::Color(255, 255, 255)),
+        "Color::Black"      => Ok(BaseValueType::Color(  0,   0,   0, 255)),
+        "Color::Gray"       => Ok(BaseValueType::Color(128, 128, 128, 255)),
+        "Color::DarkGray"   => Ok(BaseValueType::Color( 64,  64,  64, 255)),
+        "Color::LightGray"  => Ok(BaseValueType::Color(211, 211, 211, 255)),
+        "Color::White"      => Ok(BaseValueType::Color(255, 255, 255, 255)),
+        "Color::Background" => Ok(BaseValueType::Color( 10,  15,  31, 255)),
+        "Color::Transparent" => Ok(BaseValueType::Color(  0,   0,   0,   0)),
         "Color::Random" => Ok(BaseValueType::FunctionCall(String::from("Color::Random"), vec![], Type::typ(BaseType::Color))),
         col => Err(Error::parse(format!("Unknown color: {}", col), coords!(val)))
     }?;
